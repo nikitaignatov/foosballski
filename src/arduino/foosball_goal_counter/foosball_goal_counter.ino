@@ -1,20 +1,25 @@
 int led = 13;     
 int threshold = 50; 
+
+int sensor_count = 4;
+int power_pin_from = 8;
+unsigned long time;
+
 bool is_connected[] = {0,0,0,0};
 
 void setup() {
   Serial.begin(9600);
-  for  (int i = 8;i<11;i++){
+  for  (int i = power_pin_from ; i < power_pin_from + sensor_count; i++){
     pinMode(i, OUTPUT);
   }
   pinMode(led, OUTPUT);
 }
 
 void loop() {
-  for  (int i = 8;i<11;i++){
+  for  (int i = power_pin_from ; i < power_pin_from + sensor_count; i++){
     digitalWrite(i, HIGH);
   } 
-  for  (int i = 0; i < 1; i++){
+  for  (int i = 0; i < sensor_count; i++){
     bool state = is_connected[i];
     bool result = detect(i , state); 
     if(state != result){
@@ -37,11 +42,16 @@ int detect(int pin, bool is_connected )
 }
 
 void send(int pin, bool result)
-{  
-    digitalWrite(led, result ? LOW : HIGH);
-    Serial.println(
-      String("{ command: \"" ) 
-      + String(result ? "connected" : "disconnected" )
-      + String("\", trap_id: \"A") + pin + String("\" }")
-    ); 
+{    
+  time = micros();
+  Serial.println(
+    String("{ event: \"" ) 
+    + String(result ? "connected" : "disconnected" )
+    + String("\", data: { trap_id: \"A") 
+    + pin 
+    + String("\", ")
+    + time
+    + String("} }")
+  );   
+  digitalWrite(led, result ? LOW : HIGH);
 }
