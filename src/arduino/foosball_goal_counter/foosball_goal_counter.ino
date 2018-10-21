@@ -44,6 +44,12 @@ void commands()
       toggle(LOW);
       Serial.println("{ event: 'stopped' }");
     }
+    else if(cmd.startsWith("test")){
+      for  (int i = 0; i < sensor_count; i++){
+        bool state = is_connected[i];   
+        send(i, state);
+      } 
+    }
   }
 }
 
