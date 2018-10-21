@@ -1,32 +1,50 @@
+bool started = false;
+unsigned long time;
+
 int led = 13;     
 int threshold = 50; 
 
 int sensor_count = 4;
-int power_pin_from = 8;
-unsigned long time;
-
+int power_pin_from = 2;
 bool is_connected[] = {0,0,0,0};
 
 void setup() {
   Serial.begin(9600);
-  for  (int i = power_pin_from ; i < power_pin_from + sensor_count; i++){
+  for  (int i = power_pin_from ; i < power_pin_from + (sensor_count * 2); i++){
     pinMode(i, OUTPUT);
   }
   pinMode(led, OUTPUT);
 }
 
 void loop() {
-  for  (int i = power_pin_from ; i < power_pin_from + sensor_count; i++){
-    digitalWrite(i, HIGH);
-  } 
-  for  (int i = 0; i < sensor_count; i++){
-    bool state = is_connected[i];
-    bool result = detect(i , state); 
-    if(state != result){
-      is_connected[i] = result;     
-      send(i, result);
+  commands();  
+  if(started){
+    for  (int i = 0; i < sensor_count; i++){
+      bool state = is_connected[i];
+      bool result = detect(i , state); 
+      if(state != result){
+        is_connected[i] = result;     
+        send(i, result);
+      }
+    }    
+  }
+}
+
+void commands()
+{    
+  while(Serial.available() > 0){
+    String cmd = Serial.readStringUntil('\n');
+    if(cmd.startsWith("start")){
+      started = true;
+      toggle(HIGH);
+      Serial.println("{ event: 'started' }");
     }
-  }    
+    else if(cmd.startsWith("stop")){
+      started = false;
+      toggle(LOW);
+      Serial.println("{ event: 'stopped' }");
+    }
+  }
 }
 
 int detect(int pin, bool is_connected )
@@ -41,15 +59,29 @@ int detect(int pin, bool is_connected )
   return is_connected;
 }
 
+void toggle(int mode)
+{      
+  for (int i = power_pin_from ; i < power_pin_from + (sensor_count * 2); i++){
+    digitalWrite(i, mode);
+    Serial.println(
+      String("{ event: 'pin_state_changed', data: { pin: ")
+      + (i)
+      + String(",  power: '")
+      + String(mode ? "on" : "off")
+      + String("' } }")
+    );
+  } 
+}
+
 void send(int pin, bool result)
 {    
   time = micros();
   Serial.println(
     String("{ event: \"" ) 
     + String(result ? "connected" : "disconnected" )
-    + String("\", data: { trap_id: \"A") 
+    + String("\", data: { sensor_pin: 'A") 
     + pin 
-    + String("\", ")
+    + String("', time: ")
     + time
     + String("} }")
   );   
