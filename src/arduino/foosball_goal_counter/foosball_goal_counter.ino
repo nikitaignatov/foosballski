@@ -39,12 +39,12 @@ void commands()
     if(cmd.startsWith("start")){
       started = true;
       toggle(HIGH);
-      Serial.println("{ event: 'started' }");
+      Serial.println("{ \"event\": \"started\" }");
     }
     else if(cmd.startsWith("stop")){
       started = false;
       toggle(LOW);
-      Serial.println("{ event: 'stopped' }");
+      Serial.println("{ \"event\": \"stopped\" }");
     }
     else if(cmd.startsWith("test")){
       for  (int i = 0; i < sensor_count; i++){
