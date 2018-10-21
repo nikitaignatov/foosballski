@@ -8,6 +8,7 @@ int sensor_count = 4;
 int power_pin_from = 2;
 bool is_connected[] = {0,0,0,0};
 
+
 void setup() {
   Serial.begin(9600);
   for  (int i = power_pin_from ; i < power_pin_from + (sensor_count * 2); i++){
@@ -23,7 +24,8 @@ void loop() {
       bool state = is_connected[i];
       bool result = detect(i , state); 
       if(state != result){
-        is_connected[i] = result;     
+        is_connected[i] = result;         
+        time = micros();    
         send(i, result);
       }
     }    
@@ -70,26 +72,25 @@ void toggle(int mode)
   for (int i = power_pin_from ; i < power_pin_from + (sensor_count * 2); i++){
     digitalWrite(i, mode);
     Serial.println(
-      String("{ event: 'pin_state_changed', data: { pin: ")
+      String("{ \"event\": \"pin_state_changed\", \"data\": { \"pin\": ")
       + (i)
-      + String(",  power: '")
+      + String(",  \"power\": \"")
       + String(mode ? "on" : "off")
-      + String("' } }")
+      + String("\" } }")
     );
   } 
 }
 
 void send(int pin, bool result)
 {    
-  time = micros();
   Serial.println(
-    String("{ event: \"" ) 
+    String("{ \"event\": \"" ) 
     + String(result ? "connected" : "disconnected" )
-    + String("\", data: { sensor_pin: 'A") 
+    + String("\", \"data\": { \"sensor_pin\": \"A") 
     + pin 
-    + String("', time: ")
+    + String("\", \"time\": ")
     + time
-    + String("} }")
+    + String(" } }")
   );   
   digitalWrite(led, result ? LOW : HIGH);
 }
