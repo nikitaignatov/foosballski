@@ -9,7 +9,6 @@
 #load "ArduinoSerialConnector.fs"
 
 open FSharp.Data
-open System.Reactive.Linq
 open FSharp.Control.Reactive
 open Foosball
 open System
@@ -49,13 +48,11 @@ let stream sensor =
     |> Observable.filter (withSensor sensor)
     |> Observable.pairwise 
     |> Observable.partition simultaneous
-
-    //|> Observable.map (fun (key)-> key.Key,Observable.pairwise key|>Observable.partition simultaneous|> fst|>Observable.map (fun (ev1,_) -> ev1))
     |> fun (a,_)-> a|> Observable.map (fun ((t,SensorReading(key,_,time)),(_,SensorReading(_,_,time1)))->
                                                 {id=key;time=time1-time;timestamp=t} )
-    //|>Observable.subscribe (fun a ->printfn "sim: %A" a)
+    
 type Team = Black | White
-type FoosballMetaData = {team:Team;spead:float;timestamp:DateTimeOffset}
+type FoosballMetaData = {team:Team;speed:float;timestamp:DateTimeOffset}
 type Foosball =
     | StartGame of Team
     | EndGame
@@ -109,6 +106,7 @@ let print (e) =
     | ThrowInAfterGoal x->printfn "throwIn after gooal: %A" x.id
     | _,ThrowIn x->printfn "throwIn: %A" x.id
     |_->()
+
 let combined =    
     (stream "A0")
     |> Observable.merge (stream "A1") 
