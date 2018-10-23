@@ -4,7 +4,7 @@ unsigned long time;
 int led = 13;
 int threshold = 50;
 
-int sensor_count = 4;
+int sensor_count = 1;
 int power_pin_from = 2;
 bool is_connected[] = {0, 0, 0, 0};
 
@@ -25,7 +25,7 @@ void loop() {
       bool result = detect(i , state);
       if (state != result) {
         is_connected[i] = result;
-        time = micros();
+        time = millis();
         send(i, result);
       }
     }
@@ -38,12 +38,16 @@ void commands() {
     if (cmd.startsWith("start")) {
       started = true;
       toggle(HIGH);
-      Serial.println("{ \"event\": \"started\" }");
+      Serial.println("{ \"Case\": \"Started\" }");
     }
     else if (cmd.startsWith("stop")) {
       started = false;
+      
+      for  (int i = 0; i < sensor_count; i++) {
+          is_connected[i] = false;
+      }
       toggle(LOW);
-      Serial.println("{ \"event\": \"stopped\" }");
+      Serial.println("{ \"Case\": \"Stopped\" }");
     }
     else if (cmd.startsWith("test")) {
       for  (int i = 0; i < sensor_count; i++) {
@@ -69,11 +73,11 @@ void toggle(int mode) {
   for (int i = power_pin_from ; i < power_pin_from + (sensor_count * 2); i++) {
     digitalWrite(i, mode);
     Serial.println(
-      String("{ \"event\": \"pin_state_changed\", \"data\": { \"pin\": ")
+      String("{ \"Case\": \"PinReading\", \"Fields\": [ ")
       + (i)
-      + String(",  \"power\": \"")
-      + String(mode ? "on" : "off")
-      + String("\" } }")
+      + String(",  {\"Case\": \"")
+      + String(mode ? "On" : "Off")
+      + String("\" }] }")
     );
   }
 }
@@ -81,13 +85,13 @@ void toggle(int mode) {
 void send(int pin, bool result)
 {
   Serial.println(
-    String("{ \"event\": \"" )
-    + String(result ? "connected" : "disconnected" )
-    + String("\", \"data\": { \"sensor_pin\": \"A")
+    String("{ \"Case\": \"SensorReading\", \"Fields\": [\"A" )
     + pin
-    + String("\", \"time\": ")
+    + String("\", {\"Case\": \"")
+    + String(result ? "Connected" : "Disconnected" )
+    + String("\"},")
     + time
-    + String(" } }")
+    + String(" ] }")
   );
   digitalWrite(led, result ? LOW : HIGH);
 }
