@@ -18,6 +18,7 @@ module Arduino =
         | Test
     
     type Event = 
+        | Reset
         | Started
         | Stopped
         | PinReading of id : int * PinState
