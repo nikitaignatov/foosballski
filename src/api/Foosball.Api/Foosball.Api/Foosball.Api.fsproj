@@ -60,6 +60,7 @@
     <Compile Include="ArduinoSerialConnector.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Sensor.fs" />
+    <Compile Include="Achievements.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

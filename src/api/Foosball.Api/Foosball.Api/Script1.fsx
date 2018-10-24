@@ -3,157 +3,166 @@
 #r @"..\packages\System.Reactive.4.0.0\lib\net46\System.Reactive.dll"
 #r @"..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll"
 #r @"..\packages\FSharp.Control.Reactive.4.1.0\lib\net46\FSharp.Control.Reactive.dll"
-
 // load files
 #load "Arduino.fs"
 #load "ArduinoSerialConnector.fs"
+#load "Model.fs"
+#load "Sensor.fs"
+#load "Achievements.fs"
 
 open FSharp.Data
 open FSharp.Control.Reactive
 open Foosball
 open System
 open Foosball.Arduino
+open Foosball.Model
+open Newtonsoft.Json
+open Foosball
+open System.Reactive
 
-let sameSensor a b = a = b
-let occuredWithin (threshold:float) (t1:DateTimeOffset) (t2:DateTimeOffset)= t2.Subtract(t1).TotalMilliseconds<threshold
-let simultaneous ((t1:DateTimeOffset,a:Arduino.Event) ,(t2:DateTimeOffset,b:Arduino.Event)) =
-    match a,b with 
-    | SensorReading(a,Disconnected,_),SensorReading(b,Connected,_) 
-        when (occuredWithin 800. t1 t2) && (sameSensor a b)
-        -> true
-    | _ -> false
-let notSensorReading (t1:DateTimeOffset,a:Arduino.Event)  =
-    match a with 
-    | SensorReading( _,_,_)        -> false
+let notSensorReading (t1 : DateTimeOffset, a : Arduino.Event) = 
+    match a with
+    | SensorReading(_, _, _) -> false
     | _ -> true
 
-let withSensor sensor (_,a:Arduino.Event)  =
-    match a with 
-    | SensorReading(a,_,_) when a = sensor -> true
-    | _ -> false
-
-let nonSensors = 
-    Arduino.t.Observable
-    |> Observable.filter notSensorReading
+let nonSensors = Arduino.t.Observable |> Observable.filter notSensorReading
 
 let counter = 
     Arduino.t.Observable
-    |> Observable.scanInit (0,Stopped)(fun (count,_) (_,v) -> count + 1,v) 
-    |> Observable.subscribe (fun (count,v)->printfn "count: %d %A" count v)
+    |> Observable.scanInit (0, Stopped) (fun (count, _) (_, v) -> count + 1, v)
+    |> Observable.subscribe (fun (count, v) -> printfn "count: %d %A" count v)
 
-    
-type Reading={id:string;time:int; timestamp:DateTimeOffset;}
-let stream sensor = 
-    Arduino.t.Observable
-    |> Observable.filter (withSensor sensor)
-    |> Observable.pairwise 
-    |> Observable.partition simultaneous
-    |> fun (a,_)-> a|> Observable.map (fun ((t,SensorReading(key,_,time)),(_,SensorReading(_,_,time1)))->
-                                                {id=key;time=time1-time;timestamp=t} )
-    
-type Team = Black | White
-type FoosballMetaData = {team:Team;speed:float;timestamp:DateTimeOffset}
-type Foosball =
-    | StartGame of Team
-    | EndGame
-    | Goal of FoosballMetaData
-    | ThrowIn of FoosballMetaData
-    | ThrowInAfterGoal of FoosballMetaData
-// sensor mapping
-let (|InBlackGoal|_|) input = 
-    match input with
-    | {Reading.id="A2"} -> Some {input with id = "black"}
+let print a = 
+    match a with
+    | Goal y -> printfn "goal: %A speed: %f" y.team y.speed
+    | ThrowInAfterGoal x -> printfn "throwIn after gooal: %A" x.team
+    | ThrowIn x -> printfn "throwIn: %A speed: %f" x.team x.speed
+    | _ -> ()
+
+let printGame title a = 
+    a
+    |> List.rev
+    |> List.mapi (sprintf "%-5d: %O")
+    |> fun list -> (sprintf "-- %s -----------------" title) :: list
+    |> List.iter (printfn "%s")
+
+let combined = 
+    (Sensor.stream "A0")
+    |> Observable.merge (Sensor.stream "A1")
+    |> Observable.merge (Sensor.stream "A2")
+    |> Observable.merge (Sensor.stream "A3")
+    |> Observable.merge (Observable.interval (TimeSpan.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
+
+type GameConfig = 
+    | TimeLimited of int
+    | GoalLimitedTotal of int
+    | GoalLimitedTeam of int
+
+let (|IsGoal|_|) = 
+    function 
+    | Goal _ -> Some()
     | _ -> None
 
-let (|InWhiteGoal|_|) input = 
-    match input with
-    | {Reading.id="A3"} -> Some {input with id = "white"}
+let (|TrowInAny|_|) = 
+    function 
+    | ThrowIn x | ThrowInAfterEscape x | ThrowInAfterGoal x -> Some(x)
     | _ -> None
 
-let (|ThrowInBlack|_|) input = 
-    match input with
-    | {Reading.id="A0"} -> Some {input with id = "black"}
+let (|NotEnded|) = 
+    function 
+    | EndGame :: EndGame :: _ -> false
+    | _ -> true
+
+let (|Ended|_|) = 
+    function 
+    | EndGame :: _ -> Some()
     | _ -> None
 
-let (|ThrowInWhite|_|) input = 
-    match input with
-    | {Reading.id="A1"} -> Some {input with id = "white"}
-    | _ -> None
-    
-// general patterns
-let (|ThrowIn|_|) input = 
-    match input with
-    | ThrowInWhite x -> Some x
-    | ThrowInBlack x -> Some x
+let (|IsStartGame|_|) = 
+    function 
+    | StartGame(a, b) -> Some(a, b)
     | _ -> None
 
-let (|Goal|_|) (a,b) = 
-    match a,b with
-    | ThrowIn _, InBlackGoal x -> Some x
-    | ThrowIn _, InWhiteGoal x -> Some x
-    | _ -> None
+let (|GoalCount|_|) input = 
+    input
+    |> List.choose (|IsGoal|_|)
+    |> List.length
+    |> Some
 
-// logic patterns
-let (|ThrowInAfterGoal|_|) (a, b) = 
-    match (a, b) with
-    | InBlackGoal _,ThrowInBlack x -> Some x
-    | InWhiteGoal _,ThrowInWhite x -> Some x
-    | _ -> None
+let (|GameStartTime|_|) input = 
+    input
+    |> List.choose (|IsStartGame|_|)
+    |> List.map snd
+    |> List.tryHead
 
-let print (e) = 
-    match e with 
-    | Goal y -> printfn "goal: %A"y.id
-    | ThrowInAfterGoal x->printfn "throwIn after gooal: %A" x.id
-    | _,ThrowIn x->printfn "throwIn: %A" x.id
-    |_->()
+let gameLogic state event = 
+    match (state, event) with
+    | _, Tick -> state
+    | _, Reset -> [ state |> List.last ]
+    | EndGame :: _, _ -> state
+    | [ StartGame(x, _) ], ThrowIn { team = y } when x = y -> event :: state
+    | TrowInAny _ :: _, Goal _ -> event :: state
+    | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
+    | Goal { team = x } :: _, ThrowIn t when x = t.team -> ThrowInAfterGoal(t) :: state
+    | _ -> 
+        printfn "INVALID EVENT: %A" event
+        state
 
-let combined =    
-    (stream "A0")
-    |> Observable.merge (stream "A1") 
-    |> Observable.merge (stream "A2")
-    |> Observable.merge (stream "A3")
-    |> Observable.pairwise
+let endGame config state event = 
+    match (config, state, event) with
+    | _, _, EndGame :: _ -> state
+    | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame :: state
+    | TimeLimited seconds, GameStartTime time, _ when (DateTimeOffset.Now.Subtract(time)).TotalSeconds > (float seconds) -> 
+        printfn "%A" (DateTimeOffset.Now.Subtract(time)).TotalSeconds
+        EndGame :: state
+    | _, _, _ -> event
 
-let goals = combined |> Observable.subscribe print
+let ac state event = 
+    match (state, event) with
+    | _, Achievements.GoalsInRow 3 team -> (sprintf "%A %d goals in row " team 3) :: state
+    | _ -> 
+        printfn "INVALID state: %A" event
+        state
+
+let goals2 = 
+    combined
+    |> Observable.scanInit [ StartGame(White, DateTimeOffset.Now) ] gameLogic
+    |> Observable.scanInit [] (endGame (TimeLimited(30)))
+    |> Observable.takeWhile (|NotEnded|)
+
+let result = 
+    goals2 |> Observable.subscribe (fun c -> 
+                  match c with
+                  | Ended -> printGame "GAME RESULT" c
+                  | _ -> printGame "GAME STATE" c)
+
+let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 
 Arduino.t.Update """ {"Case":"PinReading","Fields":[1,{"Case":"On"}]} """
 Arduino.t.Update """ {"Case":"PinReading","Fields":[1,{"Case":"Off"}]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A0",{"Case":"Disconnected"},600]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},600]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},610]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A0",{"Case":"Connected"},610]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A0",{"Case":"Connected"},601]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
+Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
 Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
 Arduino.t.Update """ {"Case":"Started"} """
 Arduino.t.Update """ {"Case":"Stopped"} """
-
 counter.Dispose()
-goals.Dispose()
-
-
+result.Dispose()
 ArduinoSerialConnector.connect "COM3" stdin.ReadLine
 // type commands[start,stop,test,exit] into REPL
-
-type evs = JsonProvider< """
-[
-{ "event": "disconnected", "data": { "sensor_pin": "A0",    "time": 15289   } },
-{ "event": "connected", "data": { "sensor_pin": "A0",       "time": 15420} },
-{ "event": "disconnected", "data": { "sensor_pin": "A0",    "time": 141243   } },
-{ "event": "connected", "data": { "sensor_pin": "A0",       "time": 141265} }
-]
-""" >
-
-let distance cm = cm /  (100_000m)
-let ball= distance 1.8m
-let first = evs.GetSamples().[0]
-let m = 
-    evs.GetSamples()
-    |> Seq.skipWhile (fun x -> x.Event = "disconnected")
-    |> Seq.map (fun a -> a.Event, a.Data.Time)
-    |> Seq.scan (fun (a, _, x, b) (c, d) -> c, (sprintf "%s -> %s" a c), (d - b), d) (first.Event, "", 0, first.Data.Time)
-    |> Seq.filter (fun (_, x, _, _) -> x = "disconnected -> connected")
-    |> Seq.map (fun (_, x, y, _) -> x, (decimal y) / 1000.m) // time in seconds
-    |> Seq.map (fun (event,seconds) -> event,  ball / (seconds / 3600m)) // km/hour
-    |> Seq.toList
