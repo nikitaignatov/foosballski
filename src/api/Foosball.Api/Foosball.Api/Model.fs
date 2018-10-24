@@ -22,7 +22,7 @@ module Model =
         | Tick
         | Reset
         | StartGame of Team * DateTimeOffset
-        | EndGame
+        | EndGame of time : DateTimeOffset * gametime : DateTimeOffset
         | Goal of EventMetaData
         | ThrowIn of EventMetaData
         | ThrowInAfterGoal of EventMetaData
@@ -33,4 +33,4 @@ module Model =
             | ThrowIn x -> x.print "Throw In"
             | ThrowInAfterGoal x -> x.print "Throw In After Goal"
             | ThrowInAfterEscape x -> x.print "Throw In After Escape"
-            | Tick | Reset | StartGame _ | EndGame -> sprintf "%A" m
+            | Tick | Reset | StartGame _ | EndGame _ -> sprintf "%A" m

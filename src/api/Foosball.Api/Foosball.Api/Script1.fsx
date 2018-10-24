@@ -42,7 +42,7 @@ let print a =
 let printGame title a = 
     a
     |> List.rev
-    |> List.mapi (sprintf "%-5d: %O")
+    |> List.mapi (sprintf "%-3d: %O")
     |> fun list -> (sprintf "-- %s -----------------" title) :: list
     |> List.iter (printfn "%s")
 
@@ -70,12 +70,12 @@ let (|TrowInAny|_|) =
 
 let (|NotEnded|) = 
     function 
-    | EndGame :: EndGame :: _ -> false
+    | EndGame _ :: EndGame _ :: _ -> false
     | _ -> true
 
 let (|Ended|_|) = 
     function 
-    | EndGame :: _ -> Some()
+    | EndGame _ :: _ -> Some()
     | _ -> None
 
 let (|IsStartGame|_|) = 
@@ -95,11 +95,16 @@ let (|GameStartTime|_|) input =
     |> List.map snd
     |> List.tryHead
 
-let gameLogic state event = 
+let gameLogic (time : DateTimeOffset, state) event = 
+    let time = 
+        match (state, event) with
+        | TrowInAny _ :: _, Tick -> time.AddSeconds(1.)
+        | _ -> time
+    time, 
     match (state, event) with
     | _, Tick -> state
     | _, Reset -> [ state |> List.last ]
-    | EndGame :: _, _ -> state
+    | EndGame _ :: _, _ -> state
     | [ StartGame(x, _) ], ThrowIn { team = y } when x = y -> event :: state
     | TrowInAny _ :: _, Goal _ -> event :: state
     | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
@@ -108,13 +113,14 @@ let gameLogic state event =
         printfn "INVALID EVENT: %A" event
         state
 
-let endGame config state event = 
+let endGame config (state) (time : DateTimeOffset, event) = 
+    let result = (DateTimeOffset.Now, time)
     match (config, state, event) with
-    | _, _, EndGame :: _ -> state
-    | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame :: state
-    | TimeLimited seconds, GameStartTime time, _ when (DateTimeOffset.Now.Subtract(time)).TotalSeconds > (float seconds) -> 
-        printfn "%A" (DateTimeOffset.Now.Subtract(time)).TotalSeconds
-        EndGame :: state
+    | _, _, EndGame _ :: _ -> state
+    | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame result :: state
+    | TimeLimited seconds, _, _ when (time.Subtract(DateTimeOffset.MinValue)).TotalSeconds > (float seconds) -> 
+        printfn "GAME TIME: %A" (time.Subtract(DateTimeOffset.MinValue)).TotalSeconds
+        EndGame result :: state
     | _, _, _ -> event
 
 let ac state event = 
@@ -126,8 +132,8 @@ let ac state event =
 
 let goals2 = 
     combined
-    |> Observable.scanInit [ StartGame(White, DateTimeOffset.Now) ] gameLogic
-    |> Observable.scanInit [] (endGame (TimeLimited(30)))
+    |> Observable.scanInit (DateTimeOffset.MinValue, [ StartGame(White, DateTimeOffset.Now) ]) gameLogic
+    |> Observable.scanInit ([]) (endGame (TimeLimited(30)))
     |> Observable.takeWhile (|NotEnded|)
 
 let result = 
@@ -137,31 +143,17 @@ let result =
                   | _ -> printGame "GAME STATE" c)
 
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
+let r = new System.Random()
 
-Arduino.t.Update """ {"Case":"PinReading","Fields":[1,{"Case":"On"}]} """
-Arduino.t.Update """ {"Case":"PinReading","Fields":[1,{"Case":"Off"}]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A0",{"Case":"Disconnected"},600]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},600]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},610]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A0",{"Case":"Connected"},601]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A2",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Disconnected"},820]} """
-Arduino.t.Update """ {"Case":"SensorReading","Fields":["A1",{"Case":"Connected"},868]} """
-Arduino.t.Update """ {"Case":"Started"} """
-Arduino.t.Update """ {"Case":"Stopped"} """
+let send sensor = 
+    System.Threading.Thread.Sleep(r.Next(0, 3) * 1000)
+    SensorReading(sensor, Disconnected, 1) |> publish
+    SensorReading(sensor, Connected, 2 + r.Next(0, 10) * 2) |> publish
+    ()
+
+let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
+
+[ wt; wg; wt; bg; bt; bg; bt ] |> List.iter send
 counter.Dispose()
 result.Dispose()
 ArduinoSerialConnector.connect "COM3" stdin.ReadLine
