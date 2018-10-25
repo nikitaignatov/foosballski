@@ -5,6 +5,7 @@ module GameLogic =
     open Foosball.Model
     open Foosball.Patters
     open FSharp.Control.Reactive
+    open Newtonsoft.Json
     
     let increment state (time : Duration) = 
         match state with
@@ -49,11 +50,19 @@ module GameLogic =
             EndGame result :: state
         | _, _, _ -> event
     
-    let printGame title a = 
+    let printGame title (a : t list) = 
+        let mapper acc v = 
+            match (acc, v) with
+            | (a, sa, b, sb), IsGoal team -> 
+                if team = a then (a, sa + 1, b, sb)
+                else (a, sa, b, sb + 1)
+            | _ -> acc
+        
+        let summary = a |> List.fold (mapper) (Team.Black, 0, Team.White, 0)
         a
         |> List.rev
         |> List.mapi (sprintf "%-3d: %O")
-        |> fun list -> (sprintf "-- %s -----------------" title) :: list
+        |> fun list -> (sprintf "-- %s -----------------" title) :: (sprintf "-- %A" summary) :: list
         |> List.iter (printfn "%s")
     
     let gameStream team config = 
@@ -72,5 +81,7 @@ module GameLogic =
         |> Observable.subscribe (fun c -> 
                match c with
                | Tick :: _ -> printf "."
-               | Ended -> printGame "GAME RESULT" c
+               | Ended -> 
+                   Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> fun s -> IO.File.WriteAllText("c:/temp/game_result_" + (Time.Now.ToFileTime().ToString()) + ".json", s)
+                   printGame "GAME RESULT" c
                | _ -> printGame "GAME STATE" c)
