@@ -50,19 +50,24 @@ module GameLogic =
             EndGame result :: state
         | _, _, _ -> event
     
-    let printGame title (a : t list) = 
+    let printGame title (state : t list) = 
         let mapper acc v = 
             match (acc, v) with
-            | (a, sa, b, sb), IsGoal team -> 
-                if team = a then (a, sa + 1, b, sb)
-                else (a, sa, b, sb + 1)
+            | ((a, sa), x), IsGoal team when team = a -> (a, sa + 1), x
+            | (x, (b, sb)), IsGoal team when team = b -> x, (b, sb + 1)
             | _ -> acc
         
-        let summary = a |> List.fold (mapper) (Team.Black, 0, Team.White, 0)
-        a
+        let status = 
+            match state with
+            | Patters.TrowInAny _ :: _ -> "PLAYING"
+            | EndGame _ :: _ -> "ENDED"
+            | _ -> "PAUSED"
+        
+        let summary = state |> List.fold (mapper) ((Black, 0), (White, 0))
+        state
         |> List.rev
         |> List.mapi (sprintf "%-3d: %O")
-        |> fun list -> (sprintf "-- %s -----------------" title) :: (sprintf "-- %A" summary) :: list
+        |> fun list -> (sprintf "-- %s -----------------" title) :: (sprintf "-- %A -> %s" summary status) :: list
         |> List.iter (printfn "%s")
     
     let gameStream team config = 

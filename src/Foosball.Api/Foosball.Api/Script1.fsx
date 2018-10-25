@@ -29,7 +29,7 @@ let send disconnectDuration sensor =
 let sendRandomDuration sensor = send (int64 (r.Next(0, 10)) * 2000L) sensor
 
 let sendDelayedRandom sensor = 
-    System.Threading.Thread.Sleep(r.Next(0, 15) * 1000)
+    System.Threading.Thread.Sleep(r.Next(0, 3) * 1000)
     sendRandomDuration sensor
 
 let execute = List.iter sendRandomDuration
