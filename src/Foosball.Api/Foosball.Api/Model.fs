@@ -4,6 +4,7 @@ module Model =
     open System
     
     type Time = DateTimeOffset
+    
     type Duration = TimeSpan
     
     type Reading = 
@@ -20,7 +21,7 @@ module Model =
           speed : decimal
           timestamp : Time
           gametime : Duration }
-        member m.print event = sprintf "[%A]: %-25s [time: %O] [game time: %O] [speed: %.2f]" m.team event (m.timestamp.ToString("HH:mm:ss")) (m.gametime) m.speed
+        member m.print event = sprintf "[%A]: %-25s [time: %O] [game time: %O] [speed: %.2fm/s %.2fkm/h]" m.team event (m.timestamp.ToString("HH:mm:ss")) (m.gametime) m.speed (m.speed * 3.6m)
     
     type GameConfig = 
         | GameTimeLimited of Duration

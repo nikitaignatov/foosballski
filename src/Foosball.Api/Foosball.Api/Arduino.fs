@@ -22,7 +22,7 @@ module Arduino =
         | Started
         | Stopped
         | PinReading of id : int * PinState
-        | SensorReading of id : string * SensorState * time : int
+        | SensorReading of id : string * SensorState * time : int64
     
     type t() = 
         static let event = (new Event<DateTimeOffset * Event>())

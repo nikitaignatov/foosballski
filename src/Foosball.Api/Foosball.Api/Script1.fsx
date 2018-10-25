@@ -34,7 +34,8 @@ let sendDelayedRandom sensor =
 
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let result = GameLogic.start (Model.Team.White) (GameConfig.TimeLimited(Duration.FromSeconds 30.))
+let config = (GameConfig.TimeLimited(Duration.FromSeconds 80.))
+let result = GameLogic.start (Model.Team.White) config
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ wt ]

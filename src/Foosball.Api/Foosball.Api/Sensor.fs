@@ -4,12 +4,12 @@ module Sensor =
     open Foosball.Model
     open Foosball.Arduino
     open System
+    open FSharp.Data.UnitSystems
     
     module Speed = 
         open System
         
-        let distance cm = cm / (100000m)
-        let ball = distance 3.8m
+        let ball = 3.8m / 100m
         
         let fromTime time = 
             printfn "%f" time
@@ -17,7 +17,7 @@ module Sensor =
                 if time > 0m then time
                 else 1m
             
-            let time = time / 1000m / 3600m
+            let time = (time / 1000000m)
             let result = ball / time
             Decimal.Round(result, 2)
     

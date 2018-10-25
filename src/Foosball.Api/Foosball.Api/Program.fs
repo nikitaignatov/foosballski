@@ -22,7 +22,9 @@ module App =
     [<EntryPoint>]
     let main argv = 
         let q = new System.Timers.Timer(3.)
-        q.Elapsed |> Observable.subscribe (fun _ -> ())
+        let config = (Model.GameConfig.TimeLimited(Model.Duration.FromSeconds 80.))
+        use result = GameLogic.start (Model.Team.White) config
         let connector = ArduinoSerialConnector.connect "COM3" stdin.ReadLine
+        connector.WriteLine "start"
         printfn "exiting application"
         0 // return an integer exit code
