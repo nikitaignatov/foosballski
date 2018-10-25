@@ -4,6 +4,7 @@ module Model =
     open System
     
     type Time = DateTimeOffset
+    type Duration = TimeSpan
     
     type Reading = 
         { id : string
@@ -18,11 +19,12 @@ module Model =
         { team : Team
           speed : decimal
           timestamp : Time
-          gametime : TimeSpan }
+          gametime : Duration }
         member m.print event = sprintf "[%A]: %-25s [time: %O] [game time: %O] [speed: %.2f]" m.team event (m.timestamp.ToString("HH:mm:ss")) (m.gametime) m.speed
     
     type GameConfig = 
-        | TimeLimited of int
+        | GameTimeLimited of Duration
+        | TimeLimited of Duration
         | GoalLimitedTotal of int
         | GoalLimitedTeam of int
     
@@ -30,7 +32,7 @@ module Model =
         | Tick
         | Reset
         | StartGame of Team * Time
-        | EndGame of time : Time * gametime : Time
+        | EndGame of time : Time * gametime : Duration
         | Goal of EventMetaData
         | ThrowIn of EventMetaData
         | ThrowInAfterGoal of EventMetaData

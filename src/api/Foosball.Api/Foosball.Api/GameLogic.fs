@@ -6,13 +6,13 @@ module GameLogic =
     open Foosball.Patters
     open FSharp.Control.Reactive
     
-    let increment state (time : Time) = 
+    let increment state (time : Duration) = 
         match state with
-        | TrowInAny _ :: _, Tick -> time.AddSeconds(1.)
+        | TrowInAny _ :: _, Tick -> time.Add(Duration.FromSeconds 1.)
         | _ -> time
     
-    let setGameTime event (time : Time) = 
-        let update f x = f { x with gametime = time.Subtract(Time.MinValue) }
+    let setGameTime event (time : Duration) = 
+        let update f x = f { x with gametime = time }
         match event with
         | ThrowIn x -> update ThrowIn x
         | ThrowInAfterGoal x -> update ThrowInAfterGoal x
@@ -21,6 +21,7 @@ module GameLogic =
         | _ -> event
     
     let gameLogic (time, state) event = 
+        let time = increment (state, event) time
         let event = setGameTime event time
         time, 
         match (state, event) with
@@ -40,8 +41,11 @@ module GameLogic =
         match (config, state, event) with
         | _, _, EndGame _ :: _ -> state
         | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame result :: state
-        | TimeLimited seconds, _, _ when (time.Subtract(Time.MinValue)).TotalSeconds > (float seconds) -> 
-            printfn "GAME TIME: %A" (time.Subtract(Time.MinValue)).TotalSeconds
+        | GameTimeLimited durtion, _, _ when time >= durtion -> EndGame result :: state
+        | TimeLimited duration, x, _ when List.last event
+                                          |> (fun (StartGame(_, x)) -> Time.Now.Subtract x)
+                                          >= duration -> 
+            printfn "GAME TIME: %O" (time)
             EndGame result :: state
         | _, _, _ -> event
     
@@ -52,19 +56,21 @@ module GameLogic =
         |> fun list -> (sprintf "-- %s -----------------" title) :: list
         |> List.iter (printfn "%s")
     
-    let gameStream team = 
-        (Observable.interval (TimeSpan.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
+    let gameStream team config = 
+        (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
         |> Observable.merge (Sensor.stream "A0")
         |> Observable.merge (Sensor.stream "A1")
         |> Observable.merge (Sensor.stream "A2")
         |> Observable.merge (Sensor.stream "A3")
-        |> Observable.scanInit (Time.MinValue, [ StartGame(team, Time.Now) ]) gameLogic
-        |> Observable.scanInit ([]) (endGame (TimeLimited(30)))
+        |> Observable.scanInit (Duration.Zero, [ StartGame(team, Time.Now) ]) gameLogic
+        |> Observable.scanInit ([]) (endGame config)
         |> Observable.takeWhile (|NotEnded|)
     
-    let start team = 
-        gameStream team |> Observable.subscribe (fun c -> 
-                               match c with
-                               | Tick :: _ -> printf "."
-                               | Ended -> printGame "GAME RESULT" c
-                               | _ -> printGame "GAME STATE" c)
+    let start team config = 
+        config
+        |> gameStream team
+        |> Observable.subscribe (fun c -> 
+               match c with
+               | Tick :: _ -> printf "."
+               | Ended -> printGame "GAME RESULT" c
+               | _ -> printGame "GAME STATE" c)

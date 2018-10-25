@@ -16,6 +16,7 @@ open FSharp.Data
 open FSharp.Control.Reactive
 open Newtonsoft.Json
 open Foosball
+open Foosball.Model
 
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
@@ -33,7 +34,7 @@ let sendDelayedRandom sensor =
 
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let result = GameLogic.start (Model.Team.White)
+let result = GameLogic.start (Model.Team.White) (GameConfig.TimeLimited(Duration.FromSeconds 30.))
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ wt ]
