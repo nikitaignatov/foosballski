@@ -33,7 +33,7 @@ let sendDelayedRandom sensor =
 
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let result = GameLogic.result()
+let result = GameLogic.start (Model.Team.White)
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ wt ]
