@@ -50,26 +50,6 @@ module GameLogic =
             EndGame result :: state
         | _, _, _ -> event
     
-    let printGame title (state : t list) = 
-        let mapper acc v = 
-            match (acc, v) with
-            | ((a, sa), x), IsGoal team when team = a -> (a, sa + 1), x
-            | (x, (b, sb)), IsGoal team when team = b -> x, (b, sb + 1)
-            | _ -> acc
-        
-        let status = 
-            match state with
-            | Patters.TrowInAny _ :: _ -> "PLAYING"
-            | EndGame _ :: _ -> "ENDED"
-            | _ -> "PAUSED"
-        
-        let summary = state |> List.fold (mapper) ((Black, 0), (White, 0))
-        state
-        |> List.rev
-        |> List.mapi (sprintf "%-3d: %O")
-        |> fun list -> (sprintf "-- %s -----------------" title) :: (sprintf "-- %A -> %s" summary status) :: list
-        |> List.iter (printfn "%s")
-    
     let gameStream team config = 
         (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
         |> Observable.merge (Sensor.stream "A0")
@@ -88,5 +68,5 @@ module GameLogic =
                | Tick :: _ -> printf "."
                | Ended -> 
                    Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> fun s -> IO.File.WriteAllText("c:/temp/game_result_" + (Time.Now.ToFileTime().ToString()) + ".json", s)
-                   printGame "GAME RESULT" c
-               | _ -> printGame "GAME STATE" c)
+                   ConsolePrinter.printGame "GAME RESULT" c
+               | _ -> ConsolePrinter.printGame "GAME STATE" c)
