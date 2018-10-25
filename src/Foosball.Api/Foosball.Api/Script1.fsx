@@ -22,11 +22,11 @@ let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
 
 let send disconnectDuration sensor = 
-    Arduino.SensorReading(sensor, Arduino.Disconnected, 1) |> publish
-    Arduino.SensorReading(sensor, Arduino.Connected, 2 + disconnectDuration) |> publish
+    Arduino.SensorReading(sensor, Arduino.Disconnected, 1L) |> publish
+    Arduino.SensorReading(sensor, Arduino.Connected, 2L + disconnectDuration) |> publish
     ()
 
-let sendRandomDuration sensor = send (r.Next(0, 10) * 2) sensor
+let sendRandomDuration sensor = send (int64 (r.Next(0, 10)) * 2000L) sensor
 
 let sendDelayedRandom sensor = 
     System.Threading.Thread.Sleep(r.Next(0, 15) * 1000)
