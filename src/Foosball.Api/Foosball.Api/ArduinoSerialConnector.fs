@@ -5,7 +5,7 @@ module ArduinoSerialConnector =
     open Arduino
     
     let connect (port) f = 
-        let port = new SerialPort(port, 9600)
+        let port = new SerialPort(port, 250000)
         
         let read (sender : obj) (_) = 
             let reader = sender :?> SerialPort
@@ -55,3 +55,4 @@ exit  - turns off the sensors and disconnects from the port.
             """
             prompt exit
         init()
+        port
