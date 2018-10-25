@@ -52,11 +52,32 @@ module Patters =
         |> List.choose (|IsStartGame|_|)
         |> List.map snd
         |> List.tryHead
+    
+    let (|DurationBetweenGoals|_|) = Some()
+    let (|NumberOfBallEscapes|_|) = Some()
 
 module Achievements = 
     open Foosball.Model
     open Foosball.Arduino
     open System
     
-    let (|GoalWithinSeconds|_|) seconds = Some()
-    let (|LongBattle|_|) count input = Some()
+    let (|GoalWithinSeconds|_|) seconds = None
+    let (|GoalsInRow|_|) consecutive = None
+    let (|FastGoalsInRow|_|) consecutive = None
+    let (|BallEscapedMoreThan|_|) times = None
+    let (|LongBattle|_|) = None
+    
+    /// goal with very slow speed
+    let (|HowCouldYouMissThat|_|) = None
+    
+    /// goal speed > 50 km/h
+    let (|MachOne|_|) = None
+    
+    /// goal speed > 75 km/h
+    let (|MachTwo|_|) = None
+    
+    /// goal speed > 100 km/h
+    let (|MachThree|_|) = None
+    
+    /// goal speed > 130 km/h
+    let (|SpeedOfLight|_|) = None

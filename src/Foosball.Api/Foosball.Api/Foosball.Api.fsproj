@@ -61,11 +61,12 @@
     <Compile Include="Model.fs" />
     <Compile Include="Sensor.fs" />
     <Compile Include="Achievements.fs" />
+    <Compile Include="ConsolePrinter.fs" />
     <Compile Include="GameLogic.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
-    <None Include="Script1.fsx" />
+    <None Include="Simulator.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Control.Reactive">
