@@ -5,8 +5,6 @@ module Sensor =
     open Foosball.Arduino
     open System
     
-    type Time = DateTimeOffset
-    
     module Speed = 
         open System
         
@@ -23,10 +21,11 @@ module Sensor =
             let result = ball / time
             Decimal.Round(result, 2)
     
-    let toMeta team (speed, time) = 
+    let toMeta team (speed, timestamt) = 
         { team = team
           speed = speed
-          timestamp = time }
+          timestamp = timestamt
+          gametime = TimeSpan.Zero }
     
     // sensor mapping
     let (|Sensor|_|) id input = 

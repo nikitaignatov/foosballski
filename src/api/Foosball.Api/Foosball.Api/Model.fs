@@ -3,10 +3,12 @@
 module Model = 
     open System
     
+    type Time = DateTimeOffset
+    
     type Reading = 
         { id : string
           speed : decimal
-          timestamp : DateTimeOffset }
+          timestamp : Time }
     
     type Team = 
         | Black
@@ -15,14 +17,20 @@ module Model =
     type EventMetaData = 
         { team : Team
           speed : decimal
-          timestamp : DateTimeOffset }
-        member m.print event = sprintf "[%A]: %-25s [time: %O] [speed: %.2f]" m.team event (m.timestamp.ToString("HH:mm:ss")) m.speed
+          timestamp : Time
+          gametime : TimeSpan }
+        member m.print event = sprintf "[%A]: %-25s [time: %O] [game time: %O] [speed: %.2f]" m.team event (m.timestamp.ToString("HH:mm:ss")) (m.gametime) m.speed
+    
+    type GameConfig = 
+        | TimeLimited of int
+        | GoalLimitedTotal of int
+        | GoalLimitedTeam of int
     
     type t = 
         | Tick
         | Reset
-        | StartGame of Team * DateTimeOffset
-        | EndGame of time : DateTimeOffset * gametime : DateTimeOffset
+        | StartGame of Team * Time
+        | EndGame of time : Time * gametime : Time
         | Goal of EventMetaData
         | ThrowIn of EventMetaData
         | ThrowInAfterGoal of EventMetaData
