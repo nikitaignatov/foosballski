@@ -9,6 +9,7 @@
 #load "Model.fs"
 #load "Sensor.fs"
 #load "Achievements.fs"
+#load "ConsolePrinter.fs"
 #load "GameLogic.fs"
 
 open System
@@ -35,11 +36,15 @@ let sendDelayedRandom sensor =
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
 let config = (GameConfig.TimeLimited(Duration.FromSeconds 20.))
-let result = GameLogic.start (Model.Team.White) config
+let result = GameLogic.start (Model.Team.Black) config
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
+execute [ bt; ]
 execute [ wt ]
-execute [ bg; bt ]
+execute [ bg; ]
+execute [ bt; ]
+execute [ bg; ]
+execute [ bt; ]
 execute [ wt; wg; wt ]
 result.Dispose()
 ArduinoSerialConnector.connect "COM3" stdin.ReadLine

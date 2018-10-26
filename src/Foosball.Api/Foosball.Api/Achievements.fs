@@ -7,12 +7,18 @@ module Patters =
     
     let (|IsGoal|_|) = 
         function 
-        | Goal { team = t } -> Some(t)
+        | Goal meta -> Some(meta)
         | _ -> None
+    
+    let (|NotGoal|_|) = 
+        function 
+        | Goal _ -> None
+        | _ -> Some()
     
     let (|GoalsInRow|_|) count input = 
         input
         |> List.choose (|IsGoal|_|)
+        |> List.map (fun {team=team}->team)
         |> List.fold (fun (team, acc) v -> 
                if acc >= count then team, acc
                elif v = team then team, acc + 1
@@ -39,30 +45,38 @@ module Patters =
     let (|IsStartGame|_|) = 
         function 
         | StartGame(a, b) -> Some(a, b)
-        | _ -> None
+        | _ -> None        
     
-    let (|GoalCount|_|) input = 
-        input
-        |> List.choose (|IsGoal|_|)
-        |> List.length
-        |> Some
+    let (|Goals|_|) input = input|> List.choose (|IsGoal|_|) |>Some
     
+    let (|GoalCount|_|) =function 
+        | Goals x-> x|> List.length |> Some
+        |_->None
+                    
     let (|GameStartTime|_|) input = 
         input
         |> List.choose (|IsStartGame|_|)
         |> List.map snd
         |> List.tryHead
     
-    let (|DurationBetweenGoals|_|) = Some()
+    let rec (|DurationBetweenGoals|_|) = function
+        | [] -> None
+        | x::[]-> Some([(x.gametime,x)])
+        | x::[y]-> Some([(x.gametime-y.gametime,x)])
+        | x::DurationBetweenGoals ((duration,y)::tail)-> Some((x.gametime-y.gametime,x)::(duration,y)::tail)
+        |_->None
     let (|NumberOfBallEscapes|_|) = Some()
-
+    
+    let (|GoalWithinSeconds|_|) seconds list=
+        match  list with 
+        |Goals(DurationBetweenGoals ((duration,x)::tail )) when duration.TotalSeconds <= seconds -> Some((duration,x)::tail)
+        |_->None
+    
 module Achievements = 
     open Foosball.Model
     open Foosball.Arduino
     open System
     
-    let (|GoalWithinSeconds|_|) seconds = None
-    let (|GoalsInRow|_|) consecutive = None
     let (|FastGoalsInRow|_|) consecutive = None
     let (|BallEscapedMoreThan|_|) times = None
     let (|LongBattle|_|) = None
