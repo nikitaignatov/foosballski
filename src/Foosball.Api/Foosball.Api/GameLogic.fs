@@ -3,7 +3,7 @@
 module GameLogic = 
     open System
     open Foosball.Model
-    open Foosball.Patters
+    open Foosball.Pattern
     open FSharp.Control.Reactive
     open Newtonsoft.Json
     

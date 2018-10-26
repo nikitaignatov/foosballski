@@ -26,7 +26,7 @@ module Sensor =
           speed = speed
           timestamp = timestamt
           gametime = TimeSpan.Zero
-          id = Guid.NewGuid()}
+          id = Guid.NewGuid() }
     
     // sensor mapping
     let (|Sensor|_|) id input = 

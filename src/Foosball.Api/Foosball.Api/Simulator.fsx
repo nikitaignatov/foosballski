@@ -39,12 +39,12 @@ let config = (GameConfig.TimeLimited(Duration.FromSeconds 20.))
 let result = GameLogic.start (Model.Team.Black) config
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
-execute [ bt; ]
+execute [ bt ]
 execute [ wt ]
-execute [ bg; ]
-execute [ bt; ]
-execute [ bg; ]
-execute [ bt; ]
+execute [ bg ]
+execute [ bt ]
+execute [ bg ]
+execute [ bt ]
 execute [ wt; wg; wt ]
 result.Dispose()
 ArduinoSerialConnector.connect "COM3" stdin.ReadLine

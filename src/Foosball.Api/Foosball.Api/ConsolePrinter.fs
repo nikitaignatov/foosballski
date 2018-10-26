@@ -2,23 +2,23 @@
 
 module ConsolePrinter = 
     open Foosball.Model
-    open Foosball.Patters
     
     let printGame title (state : t list) = 
         let mapper acc v = 
             match (acc, v) with
-            | ((a, sa), x), IsGoal t when t.team = a -> (a, sa + 1), x
-            | (x, (b, sb)), IsGoal t when t.team = b -> x, (b, sb + 1)
+            | ((a, sa), x), Pattern.IsGoal t when t.team = a -> (a, sa + 1), x
+            | (x, (b, sb)), Pattern.IsGoal t when t.team = b -> x, (b, sb + 1)
             | _ -> acc
         
         let status = 
             match state with
-            | Patters.TrowInAny _ :: _ -> "PLAYING"
+            | Pattern.TrowInAny _ :: _ -> "PLAYING"
             | EndGame _ :: _ -> "ENDED"
             | _ -> "PAUSED"
+        
         let achievements = 
             match state with
-            | Achievements.GoalWithinSeconds (3.) x-> sprintf "Goal within 10 seconds: %A" x
+            | Pattern.GoalWithinSeconds (3.) x -> sprintf "Goal within 10 seconds: %A" x
             | _ -> "No Achievemtns"
         
         let summary = state |> List.fold (mapper) ((Team.Black, 0), (Team.White, 0))
