@@ -19,11 +19,15 @@ module Game =
 
 //printfn "%A" Arduino.Command.Start
 module App = 
+    open Newtonsoft.Json
+
     [<EntryPoint>]
     let main argv = 
         let q = new System.Timers.Timer(3.)
         let config = (Model.GameConfig.TimeLimited(Model.Duration.FromSeconds 80.))
-        use result = GameLogic.start (Model.Team.White) config
+        let signalr = Signalr.Server "http://localhost:8070"
+        use result = GameLogic.start (Model.Team.White) config (fun g-> signalr.Send (JsonConvert.SerializeObject(g,Formatting.Indented)))
+        stdin.ReadLine() |> ignore
         let connector = ArduinoSerialConnector.connect "COM3" stdin.ReadLine
         connector.WriteLine "start"
         printfn "exiting application"
