@@ -21,22 +21,6 @@ module GameLogic =
         | Goal x -> (update Goal x)
         | _ -> event
     
-    let gameLogic (time, state) event = 
-        let time = increment (state, event) time
-        let event = setGameTime event time
-        time, 
-        match (state, event) with
-        | _, Tick -> state
-        | _, Reset -> [ state |> List.last ]
-        | EndGame _ :: _, _ -> state
-        | [ StartGame(x, _) ], ThrowIn { team = y } when x = y -> event :: state
-        | TrowInAny _ :: _, Goal _ -> event :: state
-        | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
-        | Goal { team = x } :: _, ThrowIn t when x = t.team -> ThrowInAfterGoal(t) :: state
-        | _ -> 
-            printfn "INVALID EVENT: %A" event
-            state
-    
     let endGame config (state) (time, event) = 
         let result = (Time.Now, time)
         match (config, state, event) with
@@ -50,20 +34,39 @@ module GameLogic =
             EndGame result :: state
         | _, _, _ -> event
     
-    let gameStream team config = 
+    let gameLogic f config (time, state) event = 
+        let time = increment (state, event) time
+        f time
+        let event = setGameTime event time
+        let event = endGame config state (time, event :: state) |> List.head
+        time, 
+        match (state, event) with
+        | _, EndGame _ -> event :: state
+        | _, Tick -> state
+        | _, Reset -> [ state |> List.last ]
+        | [ StartGame(x, _) ], ThrowIn { team = y } when x = y -> event :: state
+        | TrowInAny _ :: _, Goal _ -> event :: state
+        | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
+        | Goal { team = x } :: _, ThrowIn t when x = t.team -> ThrowInAfterGoal(t) :: state
+        | _ -> 
+            printfn "INVALID EVENT: %A" event
+            state
+    
+    let gameStream t team config = 
         (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
         |> Observable.merge (Sensor.stream "A0")
         |> Observable.merge (Sensor.stream "A1")
         |> Observable.merge (Sensor.stream "A2")
         |> Observable.merge (Sensor.stream "A3")
-        |> Observable.scanInit (Duration.Zero, [ StartGame(team, Time.Now) ]) gameLogic
-        |> Observable.scanInit ([]) (endGame config)
+        |> Observable.scanInit (Duration.Zero, [ StartGame(team, Time.Now) ]) (gameLogic t config)
+        |> Observable.map snd
         |> Observable.takeWhile (|NotEnded|)
     
-    let start team config = 
+    let start team config f t = 
         config
-        |> gameStream team
+        |> gameStream t team
         |> Observable.subscribe (fun c -> 
+               f c
                match c with
                | Tick :: _ -> printf "."
                | Ended -> 

@@ -80,6 +80,12 @@ module Pattern =
         match list with
         | Goals(DurationBetweenGoals((duration, x) :: tail)) when duration.TotalSeconds <= seconds -> Some((duration, x) :: tail)
         | _ -> None
+    
+    let (|GameStatus|) acc v = 
+        match (acc, v) with
+        | ((a, sa), x), IsGoal t when t.team = a -> ((a, int sa + 1), x)
+        | (x, (b, sb)), IsGoal t when t.team = b -> (x, (b, int sb + 1))
+        | _ -> acc
 
 module Achievement = 
     open Foosball.Model

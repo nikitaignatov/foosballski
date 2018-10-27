@@ -8,9 +8,10 @@
 #load "ArduinoSerialConnector.fs"
 #load "Model.fs"
 #load "Sensor.fs"
-#load "Achievements.fs"
+#load "Achievement.fs"
 #load "ConsolePrinter.fs"
 #load "GameLogic.fs"
+#load "Signalr.fs"
 
 open System
 open FSharp.Data
@@ -19,6 +20,7 @@ open Newtonsoft.Json
 open Foosball
 open Foosball.Model
 
+let signalr = Signalr.Server "http://localhost:8070"
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
 
@@ -33,10 +35,26 @@ let sendDelayedRandom sensor =
     System.Threading.Thread.Sleep(r.Next(0, 3) * 1000)
     sendRandomDuration sensor
 
+module GameDto = 
+    type t = 
+        { status : (Team * int)  * (Team * int)
+          events : Model.t list }
+    
+    let toDto (input : Model.t list) = 
+        { events = input
+          status = input |> List.fold (Pattern.``|GameStatus|``) (((Team.Black, 0), (Team.White, 0))) }
+
+let publishGame (g : t list) = 
+    signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
+    ()
+let publishTime (g : Duration) = 
+    signalr.Time(JsonConvert.SerializeObject(g, Formatting.Indented))
+    ()
+
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let config = (GameConfig.TimeLimited(Duration.FromSeconds 20.))
-let result = GameLogic.start (Model.Team.Black) config
+let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 20.))
+let result = GameLogic.start (Model.Team.Black) config publishGame publishTime
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ bt ]
