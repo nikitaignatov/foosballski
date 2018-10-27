@@ -37,23 +37,51 @@ let sendDelayedRandom sensor =
 
 module GameDto = 
     type t = 
-        { status : (Team * int)  * (Team * int)
-          events : Model.t list }
+        { status : (Team * int) * (Team * int)
+          events : (Model.t * string list) list }
+    
+    let goals_within_seconds = 
+        function 
+        | Pattern.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
+        | Pattern.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
+        | Pattern.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
+        | Pattern.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
+        | _ -> None
+    
+    let speed = 
+        function 
+        | Achievement.HowCouldYouMissThat x -> sprintf "How could they miss that: %f km/h" (x * 3.6m) |> Some
+        | Achievement.SpeedOfLight x -> sprintf "Speed of light: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachThree x -> sprintf "Mach 3: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachTwo x -> sprintf "Mach 2: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachOne x -> sprintf "Mach 1: %f km/h" (x * 3.6m) |> Some
+        | _ -> None
     
     let toDto (input : Model.t list) = 
-        { events = input
+        { events = 
+              input
+              |> List.rev
+              |> List.fold (fun (state, result) v -> 
+                     (v :: state), 
+                     ((v, 
+                       [ goals_within_seconds (v :: state)
+                         speed (v :: state) ]
+                       |> List.choose id)
+                      :: result)) ([], [])
+              |> snd
           status = input |> List.fold (Pattern.``|GameStatus|``) (((Team.Black, 0), (Team.White, 0))) }
 
 let publishGame (g : t list) = 
     signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
     ()
+
 let publishTime (g : Duration) = 
-    signalr.Time(JsonConvert.SerializeObject(g, Formatting.Indented))
+    signalr.Time(JsonConvert.SerializeObject(g.ToString("mm\:ss"), Formatting.Indented))
     ()
 
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 20.))
+let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 60.))
 let result = GameLogic.start (Model.Team.Black) config publishGame publishTime
 
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
@@ -63,6 +91,7 @@ execute [ bg ]
 execute [ bt ]
 execute [ bg ]
 execute [ bt ]
+execute [ wg; wt ]
 execute [ wt; wg; wt ]
 result.Dispose()
 ArduinoSerialConnector.connect "COM3" stdin.ReadLine

@@ -78,7 +78,12 @@ module Pattern =
     
     let (|GoalWithinSeconds|_|) seconds list = 
         match list with
-        | Goals(DurationBetweenGoals((duration, x) :: tail)) when duration.TotalSeconds <= seconds -> Some((duration, x) :: tail)
+        | IsGoal _ :: _ & Goals(DurationBetweenGoals((duration, x) :: tail)) when duration.TotalSeconds <= seconds -> Some((duration, x) :: tail)
+        | _ -> None
+    
+    let (|GoalSpeed|_|) = 
+        function 
+        | IsGoal x :: _ -> Some(x.speed)
         | _ -> None
     
     let (|GameStatus|) acc v = 
@@ -97,16 +102,31 @@ module Achievement =
     let (|LongBattle|_|) = None
     
     /// goal with very slow speed
-    let (|HowCouldYouMissThat|_|) = None
+    let (|HowCouldYouMissThat|_|) = 
+        function 
+        | Pattern.GoalSpeed speed when speed < 1m -> Some(speed)
+        | _ -> None
     
-    /// goal speed > 50 km/h
-    let (|MachOne|_|) = None
+    /// goal speed > 28 km/h
+    let (|MachOne|_|) = 
+        function 
+        | Pattern.GoalSpeed speed when speed > 8m -> Some(speed)
+        | _ -> None
     
-    /// goal speed > 75 km/h
-    let (|MachTwo|_|) = None
+    /// goal speed > 43 km/h
+    let (|MachTwo|_|) = 
+        function 
+        | Pattern.GoalSpeed speed when speed > 12m -> Some(speed)
+        | _ -> None
     
-    /// goal speed > 100 km/h
-    let (|MachThree|_|) = None
+    /// goal speed > 64 km/h
+    let (|MachThree|_|) = 
+        function 
+        | Pattern.GoalSpeed speed when speed > 18m -> Some(speed)
+        | _ -> None
     
-    /// goal speed > 130 km/h
-    let (|SpeedOfLight|_|) = None
+    /// goal speed > 72 km/h
+    let (|SpeedOfLight|_|) = 
+        function 
+        | Pattern.GoalSpeed speed when speed > 20m -> Some(speed)
+        | _ -> None
