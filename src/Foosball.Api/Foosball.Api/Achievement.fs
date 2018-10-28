@@ -15,14 +15,69 @@ module Pattern =
         | Goal _ -> None
         | _ -> Some()
     
+    let (|AllPlayersRegistered|_|) input = 
+        printfn "AllPlayersRegistered: %A" (input |> List.rev)
+        match input |> List.rev with
+        | [ Configure _; Register _; Register _; Register _; Register _ ] -> Some()
+        | Configure _ :: Register _ :: Register _ :: Register _ :: Register _ :: _ -> Some()
+        | _ -> None
+    
+    let (|NotAllPlayersRegistered|_|) = 
+        function 
+        | AllPlayersRegistered _ -> None
+        | _ -> Some()
+    
+    let (|MissingOnePlayer|_|) input = 
+        match input with
+        | [ Register wd; Register wa; Register bd; Configure _ ] -> Some(wd, wa, bd)
+        | _ -> None
+    
+    let (|RegisterAllPlayers|_|) (state, event) = 
+        match (state, event) with
+        | MissingOnePlayer(wd, wa, bd), Register ba -> 
+            let white = Team.create (White) wa wd
+            let black = Team.create (Black) ba bd
+            let start = StartGame(black, Time.Now)
+            start :: RegisterTeam black :: RegisterTeam white :: event :: state |> Some
+        | _ -> None
+    
+    let (|RegisterWhiteDefense|_|) input = 
+        match input with
+        | [ Configure _ ] -> Some("CONFIGURATION", [ Player.zero; Player.zero; Player.zero; Player.zero ], "Register player for White Defense position")
+        | _ -> None
+    
+    let (|RegisterWhiteAttack|_|) input = 
+        match input with
+        | [ Register a; Configure _ ] -> Some("CONFIGURATION", [ a; Player.zero; Player.zero; Player.zero ], "Register player for White Attack position")
+        | _ -> None
+    
+    let (|RegisterBlackDefense|_|) input = 
+        match input with
+        | [ Register b; Register a; Configure _ ] -> Some("CONFIGURATION", [ a; b; Player.zero; Player.zero ], "Register player for Black Defense position")
+        | _ -> None
+    
+    let (|RegisterBlackAttack|_|) input = 
+        match input with
+        | [ Register c; Register b; Register a; Configure _ ] -> Some("CONFIGURATION", [ a; b; c; Player.zero ], "Register player for Black Attack position")
+        | _ -> None
+    
+    let (|RegisteredPlayers|_|) input = 
+        match input with
+        | [ Register d; Register c; Register b; Register a; Configure _ ] -> Some("READY", [ a; b; c; d ], "Throw in the ball to start the game.")
+        | RegisterBlackAttack(a) -> Some(a)
+        | RegisterBlackDefense(a) -> Some(a)
+        | RegisterWhiteAttack(a) -> Some(a)
+        | RegisterWhiteDefense(a) -> Some(a)
+        | _ -> None
+    
     let (|GoalsInRow|_|) count input = 
         input
         |> List.choose (|IsGoal|_|)
         |> List.map (fun { team = team } -> team)
         |> List.fold (fun (team, acc) v -> 
                if acc >= count then team, acc
-               elif v = team then team, acc + 1
-               else v, 1) (Black, 0)
+               elif v.color = team then team, acc + 1
+               else v.color, 1) (TeamColor.Black, 0)
         |> fun (team, countInRow) -> 
             if countInRow >= count then Some team
             else None
@@ -32,7 +87,7 @@ module Pattern =
         | ThrowIn x | ThrowInAfterEscape x | ThrowInAfterGoal x -> Some(x)
         | _ -> None
     
-    let (|NotEnded|) = 
+    let (|ContinueObserving|) = 
         function 
         | EndGame _ :: EndGame _ :: _ -> false
         | _ -> true

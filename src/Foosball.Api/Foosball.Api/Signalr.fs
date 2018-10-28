@@ -28,3 +28,4 @@ module Signalr=
             
         member x.Send message = clients.All?publish message
         member x.Time message = clients.All?time message
+        member x.Players message = clients.All?players message

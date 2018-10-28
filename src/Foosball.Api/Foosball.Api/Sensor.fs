@@ -49,10 +49,10 @@ module Sensor =
     
     let toDomainModel = 
         function 
-        | Sensor "A0" x -> ThrowIn(toMeta Black x)
-        | Sensor "A1" x -> ThrowIn(toMeta White x)
-        | Sensor "A2" x -> Goal(toMeta White x)
-        | Sensor "A3" x -> Goal(toMeta Black x)
+        | Sensor "A0" x -> ThrowIn(toMeta Team.black x)
+        | Sensor "A1" x -> ThrowIn(toMeta Team.white x)
+        | Sensor "A2" x -> Goal(toMeta Team.white x)
+        | Sensor "A3" x -> Goal(toMeta Team.black x)
     
     let toReading ((t, SensorReading(key, _, time)), (_, SensorReading(_, _, time1))) = 
         { id = key

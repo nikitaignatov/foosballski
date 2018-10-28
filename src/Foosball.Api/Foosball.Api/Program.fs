@@ -1,34 +1,89 @@
 ﻿namespace Foosball
 
-module Team = 
-    type Player = 
-        { name : string }
+module GameDto = 
+    open Model
     
     type t = 
-        { offense : Player
-          defense : Player }
-
-module Game = 
-    type t = 
-        | NotConfigured
-        | Playing of teams : string array
-        | Goal of team : Team.t
-        | ThrowIn of team : Team.t
-        | Substitution
-        | Ended of result : string
+        { status : (Team * int) * (Team * int)
+          events : (Model.GameEvent * string list) list }
+    
+    let goals_within_seconds = 
+        function 
+        | Pattern.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
+        | Pattern.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
+        | Pattern.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
+        | Pattern.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
+        | _ -> None
+    
+    let speed = 
+        function 
+        | Achievement.HowCouldYouMissThat x -> sprintf "How could they miss that: %f km/h" (x * 3.6m) |> Some
+        | Achievement.SpeedOfLight x -> sprintf "Speed of light: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachThree x -> sprintf "Mach 3: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachTwo x -> sprintf "Mach 2: %f km/h" (x * 3.6m) |> Some
+        | Achievement.MachOne x -> sprintf "Mach 1: %f km/h" (x * 3.6m) |> Some
+        | _ -> None
+    
+    let toDto (input : Model.GameEvent list) = 
+        { events = 
+              input
+              |> List.rev
+              |> List.fold (fun (state, result) v -> 
+                     (v :: state), 
+                     ((v, 
+                       [ goals_within_seconds (v :: state)
+                         speed (v :: state) ]
+                       |> List.choose id)
+                      :: result)) ([], [])
+              |> snd
+          status = input |> List.fold (Pattern.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
 
 //printfn "%A" Arduino.Command.Start
 module App = 
     open Newtonsoft.Json
-
+    open Model
+    open PCSC.Monitoring
+    open Nfc.Reader
+    
     [<EntryPoint>]
     let main argv = 
+        let settings = Settings.t.zero
         let q = new System.Timers.Timer(3.)
-        let config = (Model.GameConfig.TimeLimited(Model.Duration.FromSeconds 80.))
-        let signalr = Signalr.Server "http://localhost:8070"
-        use result = GameLogic.start (Model.Team.White) config (fun g-> signalr.Send (JsonConvert.SerializeObject(g,Formatting.Indented)))
-        stdin.ReadLine() |> ignore
-        let connector = ArduinoSerialConnector.connect "COM3" stdin.ReadLine
-        connector.WriteLine "start"
+        let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))
+        let signalr = Signalr.Server settings.signalr
+        System.Diagnostics.Process.Start(settings.app) |> ignore
+        let publishGame (g : GameEvent list) = 
+            signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
+            ()
+        
+        let publishTime (g : string) = 
+            signalr.Time(JsonConvert.SerializeObject(g, Formatting.Indented))
+            ()
+        
+        let publishPlayers (g : Player list) = 
+            signalr.Players(JsonConvert.SerializeObject(g, Formatting.Indented))
+            ()
+        
+        let cardToPlayer card = { Player.zero with card = card }
+        let obs2, (monitor : SCardMonitor) = CardReader.execute()
+        
+        let regs = 
+            obs2
+            |> Observable.map (fun x -> 
+                   match x with
+                   | Nfc.Reader.CardReader.Inserted x -> 
+                       cardToPlayer x
+                       |> Register
+                       |> Some
+                   | _ -> None)
+            |> Observable.choose id
+        
+        use result = GameLogic.start (regs) (Model.Team.black) config publishGame publishTime publishPlayers
+        let connector, init = ArduinoSerialConnector.connect settings.sensor stdin.ReadLine
+        init()
+        connector.start()
         printfn "exiting application"
+        monitor.Dispose()
+        result.Dispose()
+        connector.close()
         0 // return an integer exit code

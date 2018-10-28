@@ -4,22 +4,31 @@ module ArduinoSerialConnector =
     open System.IO.Ports
     open Arduino
     
-    let connect (port) f = 
-        let port = new SerialPort(port, 250000)
+    type t = 
+        { start : unit -> unit
+          stop : unit -> unit
+          test : unit -> unit
+          close : unit -> unit }
+    
+    let connect (settings : Settings.sensor) f = 
+        let port = new SerialPort(settings.com_port, settings.baud_rate)
         
         let read (sender : obj) (_) = 
             let reader = sender :?> SerialPort
             Arduino.t.Update(reader.ReadLine().Trim())
         
         let send (command : Command) = port.WriteLine(command.ToString().ToLower())
-        let start() = send Start
-        let stop() = send Stop
-        let test() = send Test
         
         let close() = 
             if port.IsOpen then 
-                stop()
+                send Stop
                 port.Close()
+        
+        let api = 
+            { start = fun () -> send Start
+              stop = fun () -> send Stop
+              test = fun () -> send Test
+              close = close }
         
         let rec prompt predicate = 
             let print f = 
@@ -27,15 +36,15 @@ module ArduinoSerialConnector =
                 printfn "%s" value
                 value
             match print f with
-            | value when predicate value -> close()
+            | value when predicate value -> api.close()
             | "start" -> 
-                start()
+                api.start()
                 prompt predicate
             | "stop" -> 
-                stop()
+                api.stop()
                 prompt predicate
             | "test" -> 
-                test()
+                api.test()
                 prompt predicate
             | value -> (prompt predicate)
         
@@ -53,6 +62,6 @@ test  - reads current status of the sensors.
 exit  - turns off the sensors and disconnects from the port.
 
             """
+            api.start()
             prompt exit
-        init()
-        port
+        api, init

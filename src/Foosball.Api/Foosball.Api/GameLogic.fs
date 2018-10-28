@@ -27,8 +27,9 @@ module GameLogic =
         | _, _, EndGame _ :: _ -> state
         | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame result :: state
         | GameTimeLimited durtion, _, _ when time >= durtion -> EndGame result :: state
-        | TimeLimited duration, x, _ when List.last event
-                                          |> (fun (StartGame(_, x)) -> Time.Now.Subtract x)
+        | TimeLimited duration, x, _ when (List.last event |> function 
+                                           | (StartGame(_, x)) -> Time.Now.Subtract x
+                                           | _ -> Duration.Zero)
                                           >= duration -> 
             printfn "GAME TIME: %O" (time)
             EndGame result :: state
@@ -36,40 +37,47 @@ module GameLogic =
     
     let gameLogic f config (time, state) event = 
         let time = increment (state, event) time
-        f time
+        f (time.ToString("mm\:ss"))
         let event = setGameTime event time
         let event = endGame config state (time, event :: state) |> List.head
+        printfn "-> %A" event
         time, 
         match (state, event) with
+        | RegisterAllPlayers state -> state
+        | NotAllPlayersRegistered, Register _ -> event :: state
         | _, EndGame _ -> event :: state
         | _, Tick -> state
-        | _, Reset -> [ state |> List.last ]
-        | [ StartGame(x, _) ], ThrowIn { team = y } when x = y -> event :: state
+        | StartGame(x, _) :: _, ThrowIn { team = y } when x.color = y.color -> event :: state
         | TrowInAny _ :: _, Goal _ -> event :: state
         | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
-        | Goal { team = x } :: _, ThrowIn t when x = t.team -> ThrowInAfterGoal(t) :: state
+        | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state
         | _ -> 
             printfn "INVALID EVENT: %A" event
             state
     
-    let gameStream t team config = 
+    let gameStream cardreader t team config = 
         (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
+        |> Observable.merge (cardreader)
         |> Observable.merge (Sensor.stream "A0")
         |> Observable.merge (Sensor.stream "A1")
         |> Observable.merge (Sensor.stream "A2")
         |> Observable.merge (Sensor.stream "A3")
-        |> Observable.scanInit (Duration.Zero, [ StartGame(team, Time.Now) ]) (gameLogic t config)
+        |> Observable.scanInit (Duration.Zero, [ Configure(config) ]) (gameLogic t config)
         |> Observable.map snd
-        |> Observable.takeWhile (|NotEnded|)
+        |> Observable.takeWhile (|ContinueObserving|)
     
-    let start team config f t = 
+    let start c team config f t players = 
         config
-        |> gameStream t team
+        |> gameStream c t team
         |> Observable.subscribe (fun c -> 
                f c
                match c with
-               | Tick :: _ -> printf "."
+               | StartGame _ :: RegisterTeam({ defense = c; attack = d }) :: RegisterTeam({ defense = a; attack = b }) :: _ -> players [ a; b; c; d ]
+               | RegisteredPlayers(_, p, message) -> 
+                   printfn "RegisteredPlayers"
+                   t message
+                   players (p)
                | Ended -> 
                    Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> fun s -> IO.File.WriteAllText("c:/temp/game_result_" + (Time.Now.ToFileTime().ToString()) + ".json", s)
                    ConsolePrinter.printGame "GAME RESULT" c
-               | _ -> ConsolePrinter.printGame "GAME STATE" c)
+               | _ ->ConsolePrinter.printGame "GAME STATE " c)

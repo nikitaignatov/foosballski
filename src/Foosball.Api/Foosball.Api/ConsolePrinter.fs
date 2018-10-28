@@ -20,8 +20,8 @@ module ConsolePrinter =
         | Pattern.GoalWithinSeconds (3.) x -> sprintf "Goal within 10 seconds: %A" x
         | _ -> "No Achievemtns"
     
-    let printGame title (state : t list) = 
-        let summary = state |> List.fold (mapper) ((Team.Black, 0), (Team.White, 0))
+    let printGame title (state : GameEvent list) = 
+        let summary = state |> List.fold (mapper) ((Team.black, 0), (Team.white, 0))
         state
         |> List.rev
         |> List.mapi (sprintf "%-3d: %O")
