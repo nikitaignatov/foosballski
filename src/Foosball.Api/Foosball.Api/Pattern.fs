@@ -152,22 +152,22 @@ module Pattern =
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None
         
-        let private (|RegisterWhiteDefense|_|) = 
+        let private (|WhiteDefense|_|) = 
             function 
             | [ Configure _ ] -> Some([ empty; empty; empty; empty ])
             | _ -> None
         
-        let private (|RegisterWhiteAttack|_|) = 
+        let private (|WhiteAttack|_|) = 
             function 
             | [ Register a; Configure _ ] -> Some([ a; empty; empty; empty ])
             | _ -> None
         
-        let private (|RegisterBlackDefense|_|) = 
+        let private (|BlackDefense|_|) = 
             function 
             | [ Register b; Register a; Configure _ ] -> Some([ a; b; empty; empty ])
             | _ -> None
         
-        let private (|RegisterBlackAttack|_|) = 
+        let private (|BlackAttack|_|) = 
             function 
             | [ Register c; Register b; Register a; Configure _ ] -> Some([ a; b; c; empty ])
             | _ -> None
@@ -175,8 +175,8 @@ module Pattern =
         let (|RegisteredPlayers|_|) input = 
             match input with
             | [ Register d; Register c; Register b; Register a; Configure _ ] -> Some("READY", [ a; b; c; d ], "Throw in the ball to start the game.")
-            | RegisterBlackAttack(a) -> Some("Configure", a, "Register player for Black Attack position")
-            | RegisterBlackDefense(a) -> Some("Configure", a, "Register player for Black Defense position")
-            | RegisterWhiteAttack(a) -> Some("Configure", a, "Register player for White Attack position")
-            | RegisterWhiteDefense(a) -> Some("Configure", a, "Register player for White Defense position")
+            | BlackAttack(a) -> Some("Configure", a, "Register player for Black Attack position")
+            | BlackDefense(a) -> Some("Configure", a, "Register player for Black Defense position")
+            | WhiteAttack(a) -> Some("Configure", a, "Register player for White Attack position")
+            | WhiteDefense(a) -> Some("Configure", a, "Register player for White Defense position")
             | _ -> None
