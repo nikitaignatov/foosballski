@@ -68,6 +68,7 @@ module GameLogic =
         |> Observable.subscribe (fun c -> 
                f c
                match c with
+               | Registration.GoalsByPlayers list -> players list
                | Registration.AllPlayersRegistered list -> players list
                | Registration.RegisteredPlayers(_, p, message) -> 
                    t message

@@ -15,17 +15,19 @@ module Model =
     type Player = 
         { firstName : string
           lastName : string
-          card : string }
+          card : string
+          goals : EventMetaData list }
         static member zero = 
             { firstName = "---"
               lastName = "---"
-              card = "" }
+              card = ""
+              goals = [] }
     
-    type TeamColor = 
+    and TeamColor = 
         | Black
         | White
     
-    type Team = 
+    and Team = 
         { attack : Player
           defense : Player
           color : TeamColor }
@@ -43,7 +45,7 @@ module Model =
         static member black = Team.zero TeamColor.Black
         static member white = Team.zero TeamColor.White
     
-    type EventMetaData = 
+    and EventMetaData = 
         { team : Team
           speed : decimal
           timestamp : Time

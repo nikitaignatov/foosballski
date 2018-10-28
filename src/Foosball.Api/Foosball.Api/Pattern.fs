@@ -80,6 +80,7 @@ module Pattern =
         let (|RegisterGoal|_|) (state, event) = 
             match (state, event) with
             | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
+            | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
             | _ -> None
         
         let (|RegisterWhoScoredLastGoal|_|) (state, event) = 
@@ -95,6 +96,7 @@ module Pattern =
         let (|RegisterThrowInAfterGoal|_|) (state, event) = 
             match (state, event) with
             | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state |> Some
+            | ScoredLastGoal _ :: Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state |> Some
             | _ -> None
         
         let (|GameStatus|) acc v = 
@@ -135,6 +137,29 @@ module Pattern =
             match input |> List.rev with
             | [ Configure _; Register a; Register b; Register c; Register d ] -> Some([ a; b; c; d ])
             | Configure _ :: Register a :: Register b :: Register c :: Register d :: _ -> Some([ a; b; c; d ])
+            | _ -> None
+        
+        let (|GoalsByPlayers|_|) input = 
+            match input with
+            | AllPlayersRegistered a -> 
+                let matcher x = 
+                    match x with
+                    | ScoredLastGoal x, Goal y -> Some(x, y)
+                    | _ -> None
+                
+                let players = 
+                    input
+                    |> List.pairwise
+                    |> List.choose matcher
+                
+                printfn "players: %A" players
+                let p = 
+                    a |> List.map (fun x -> 
+                             { x with goals = 
+                                          players
+                                          |> List.filter (fun (a, b) -> a.card = x.card)
+                                          |> List.map snd })
+                Some(p)
             | _ -> None
         
         let (|NotAllPlayersRegistered|_|) = 

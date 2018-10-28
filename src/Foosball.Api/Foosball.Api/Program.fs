@@ -78,7 +78,7 @@ module App =
                    | _ -> None)
             |> Observable.choose id
         
-        use result = GameLogic.start (regs) (Model.Team.black) config publishGame publishTime publishPlayers
+        use result = GameLogic.start (regs) (Model.Team.white) config publishGame publishTime publishPlayers
         let connector, init = ArduinoSerialConnector.connect settings.sensor stdin.ReadLine
         init()
         connector.start()
