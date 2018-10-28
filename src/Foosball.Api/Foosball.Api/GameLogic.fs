@@ -41,6 +41,7 @@ module GameLogic =
         | GameControl.EndGame state -> state
         | GameControl.StartGame state -> state
         | GameControl.RegisterGoal state -> state
+        | GameControl.RegisterWhoScoredLastGoal state -> state
         | GameControl.RegisterBallOutsideField state -> state
         | GameControl.RegisterThrowInAfterGoal state -> state
         | _ -> 

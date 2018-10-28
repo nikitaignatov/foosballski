@@ -34,6 +34,7 @@ module Model =
             { attack = Player.zero
               defense = Player.zero
               color = color }
+        
         static member create color attack defense = 
             { attack = attack
               defense = defense
@@ -65,6 +66,7 @@ module Model =
         | Substitution of Team
         | StartGame of Team * Time
         | EndGame of time : Time * gametime : Duration
+        | ScoredLastGoal of Player
         | Goal of EventMetaData
         | ThrowIn of EventMetaData
         | ThrowInAfterGoal of EventMetaData

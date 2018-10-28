@@ -82,6 +82,11 @@ module Pattern =
             | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
             | _ -> None
         
+        let (|RegisterWhoScoredLastGoal|_|) (state, event) = 
+            match (state, event) with
+            | Goal _ :: _, Register player -> (ScoredLastGoal player :: state) |> Some
+            | _ -> None
+        
         let (|RegisterBallOutsideField|_|) (state, event) = 
             match (state, event) with
             | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state |> Some
@@ -137,14 +142,9 @@ module Pattern =
             | AllPlayersRegistered _ -> None
             | _ -> Some()
         
-        let (|MissingOnePlayer|_|) input = 
-            match input with
-            | [ Register wd; Register wa; Register bd; Configure _ ] -> Some(wd, wa, bd)
-            | _ -> None
-        
         let (|RegisterPlayers|_|) (state, event) = 
             match (state, event) with
-            | MissingOnePlayer(wd, wa, bd), Register ba -> 
+            | [ Register wd; Register wa; Register bd; Configure _ ], Register ba -> 
                 let white = Team.create (White) wa wd
                 let black = Team.create (Black) ba bd
                 let start = StartGame(black, Time.Now)
