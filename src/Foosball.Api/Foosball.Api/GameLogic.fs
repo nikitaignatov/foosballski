@@ -59,16 +59,17 @@ module GameLogic =
         |> Observable.takeWhile GameControl.``|ContinueObserving|``
     
     let start c team config f t players = 
+        let saveFile s = 
+            let timestamp = (Time.Now.ToFileTime().ToString())
+            IO.File.WriteAllText("c:/temp/game_result_" + timestamp + ".json", s)
         config
         |> gameStream c t team
         |> Observable.subscribe (fun c -> 
                f c
                match c with
-               | StartGame _ :: RegisterTeam({ defense = c; attack = d }) :: RegisterTeam({ defense = a; attack = b }) :: _ -> players [ a; b; c; d ]
+               | Registration.AllPlayersRegistered list -> players list
                | Registration.RegisteredPlayers(_, p, message) -> 
                    t message
                    players (p)
-               | Ended -> 
-                   Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> fun s -> IO.File.WriteAllText("c:/temp/game_result_" + (Time.Now.ToFileTime().ToString()) + ".json", s)
-                   ConsolePrinter.printGame "GAME RESULT" c
+               | Ended -> Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> saveFile
                | _ -> ConsolePrinter.printGame "GAME STATE " c)

@@ -128,8 +128,8 @@ module Pattern =
         
         let (|AllPlayersRegistered|_|) input = 
             match input |> List.rev with
-            | [ Configure _; Register _; Register _; Register _; Register _ ] -> Some()
-            | Configure _ :: Register _ :: Register _ :: Register _ :: Register _ :: _ -> Some()
+            | [ Configure _; Register a; Register b; Register c; Register d ] -> Some([ a; b; c; d ])
+            | Configure _ :: Register a :: Register b :: Register c :: Register d :: _ -> Some([ a; b; c; d ])
             | _ -> None
         
         let (|NotAllPlayersRegistered|_|) = 
