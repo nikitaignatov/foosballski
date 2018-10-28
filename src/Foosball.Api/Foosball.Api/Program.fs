@@ -36,7 +36,7 @@ module GameDto =
                        |> List.choose id)
                       :: result)) ([], [])
               |> snd
-          status = input |> List.fold (Pattern.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
+          status = input |> List.fold (Pattern.GameControl.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
 
 //printfn "%A" Arduino.Command.Start
 module App = 

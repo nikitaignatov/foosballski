@@ -9,7 +9,7 @@ module GameLogic =
     
     let increment state (time : Duration) = 
         match state with
-        | TrowInAny _ :: _, Tick -> time.Add(Duration.FromSeconds 1.)
+        | GameControl.TrowInAny _ :: _, Tick -> time.Add(Duration.FromSeconds 1.)
         | _ -> time
     
     let setGameTime event (time : Duration) = 
@@ -43,13 +43,12 @@ module GameLogic =
         printfn "-> %A" event
         time, 
         match (state, event) with
-        | RegisterAllPlayers state -> state
-        | NotAllPlayersRegistered, Register _ -> event :: state
+        | Registration.RegisterPlayers state -> state
         | _, EndGame _ -> event :: state
         | _, Tick -> state
         | StartGame(x, _) :: _, ThrowIn { team = y } when x.color = y.color -> event :: state
-        | TrowInAny _ :: _, Goal _ -> event :: state
-        | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state
+        | GameControl.TrowInAny _ :: _, Goal _ -> event :: state
+        | GameControl.TrowInAny _ :: _, GameControl.TrowInAny t -> ThrowInAfterEscape(t) :: state
         | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state
         | _ -> 
             printfn "INVALID EVENT: %A" event
@@ -64,7 +63,7 @@ module GameLogic =
         |> Observable.merge (Sensor.stream "A3")
         |> Observable.scanInit (Duration.Zero, [ Configure(config) ]) (gameLogic t config)
         |> Observable.map snd
-        |> Observable.takeWhile (|ContinueObserving|)
+        |> Observable.takeWhile GameControl.(|ContinueObserving|)
     
     let start c team config f t players = 
         config
@@ -73,7 +72,7 @@ module GameLogic =
                f c
                match c with
                | StartGame _ :: RegisterTeam({ defense = c; attack = d }) :: RegisterTeam({ defense = a; attack = b }) :: _ -> players [ a; b; c; d ]
-               | RegisteredPlayers(_, p, message) -> 
+               | Registration.RegisteredPlayers(_, p, message) -> 
                    t message
                    players (p)
                | Ended -> 

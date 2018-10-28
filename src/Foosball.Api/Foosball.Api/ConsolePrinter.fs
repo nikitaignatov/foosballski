@@ -11,7 +11,7 @@ module ConsolePrinter =
     
     let status = 
         function 
-        | Pattern.TrowInAny _ :: _ -> "PLAYING"
+        | Pattern.GameControl.TrowInAny _ :: _ -> "PLAYING"
         | EndGame _ :: _ -> "ENDED"
         | _ -> "PAUSED"
     
