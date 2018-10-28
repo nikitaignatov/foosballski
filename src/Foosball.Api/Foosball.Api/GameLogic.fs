@@ -25,7 +25,7 @@ module GameLogic =
         let result = (Time.Now, time)
         match (config, state, event) with
         | _, _, EndGame _ :: _ -> state
-        | GoalLimitedTotal limit, GoalCount count, _ when count = limit -> EndGame result :: state
+        | GoalLimitedTotal limit, Goal.Count count, _ when count = limit -> EndGame result :: state
         | GameTimeLimited durtion, _, _ when time >= durtion -> EndGame result :: state
         | TimeLimited duration, x, _ when (List.last event |> function 
                                            | (StartGame(_, x)) -> Time.Now.Subtract x
@@ -74,10 +74,9 @@ module GameLogic =
                match c with
                | StartGame _ :: RegisterTeam({ defense = c; attack = d }) :: RegisterTeam({ defense = a; attack = b }) :: _ -> players [ a; b; c; d ]
                | RegisteredPlayers(_, p, message) -> 
-                   printfn "RegisteredPlayers"
                    t message
                    players (p)
                | Ended -> 
                    Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> fun s -> IO.File.WriteAllText("c:/temp/game_result_" + (Time.Now.ToFileTime().ToString()) + ".json", s)
                    ConsolePrinter.printGame "GAME RESULT" c
-               | _ ->ConsolePrinter.printGame "GAME STATE " c)
+               | _ -> ConsolePrinter.printGame "GAME STATE " c)

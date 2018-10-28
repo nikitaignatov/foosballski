@@ -9,10 +9,10 @@ module GameDto =
     
     let goals_within_seconds = 
         function 
-        | Pattern.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
-        | Pattern.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
-        | Pattern.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
-        | Pattern.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
         | _ -> None
     
     let speed = 
@@ -82,6 +82,7 @@ module App =
         let connector, init = ArduinoSerialConnector.connect settings.sensor stdin.ReadLine
         init()
         connector.start()
+        stdout.WriteLine("start")
         printfn "exiting application"
         monitor.Dispose()
         result.Dispose()

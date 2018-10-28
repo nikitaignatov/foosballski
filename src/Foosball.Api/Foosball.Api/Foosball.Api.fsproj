@@ -62,6 +62,7 @@
     <Compile Include="ArduinoSerialConnector.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Sensor.fs" />
+    <Compile Include="Pattern.fs" />
     <Compile Include="Achievement.fs" />
     <Compile Include="ConsolePrinter.fs" />
     <Compile Include="GameLogic.fs" />
