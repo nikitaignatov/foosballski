@@ -7,9 +7,9 @@ module GameLogic =
     open FSharp.Control.Reactive
     open Newtonsoft.Json
     
-    let increment state (time : Duration) = 
-        match state with
-        | GameControl.TrowInAny _ :: _, Tick -> time.Add(Duration.FromSeconds 1.)
+    let increment (time : Duration) = 
+        function 
+        | GameControl.Playing, Tick -> time.Add(Duration.FromSeconds 1.)
         | _ -> time
     
     let setGameTime event (time : Duration) = 
@@ -22,34 +22,27 @@ module GameLogic =
         | _ -> event
     
     let endGame config (state) (time, event) = 
-        let result = (Time.Now, time)
-        match (config, state, event) with
-        | _, _, EndGame _ :: _ -> state
-        | GoalLimitedTotal limit, Goal.Count count, _ when count = limit -> EndGame result :: state
-        | GameTimeLimited durtion, _, _ when time >= durtion -> EndGame result :: state
-        | TimeLimited duration, x, _ when (List.last event |> function 
-                                           | (StartGame(_, x)) -> Time.Now.Subtract x
-                                           | _ -> Duration.Zero)
-                                          >= duration -> 
-            printfn "GAME TIME: %O" (time)
-            EndGame result :: state
-        | _, _, _ -> event
+        match ((Time.Now, time), config, state, event) with
+        | _, _, _, EndGame _ :: _ -> state
+        | GameControl.End.ByTotalGoalCount state -> state
+        | GameControl.End.ByGameTimeLimit state -> state
+        | GameControl.End.ByTimeLimit state -> state
+        | _ -> event
     
     let gameLogic f config (time, state) event = 
-        let time = increment (state, event) time
+        let time = increment time (state, event)
         f (time.ToString("mm\:ss"))
         let event = setGameTime event time
         let event = endGame config state (time, event :: state) |> List.head
-        printfn "-> %A" event
         time, 
         match (state, event) with
-        | Registration.RegisterPlayers state -> state
-        | _, EndGame _ -> event :: state
         | _, Tick -> state
-        | StartGame(x, _) :: _, ThrowIn { team = y } when x.color = y.color -> event :: state
-        | GameControl.TrowInAny _ :: _, Goal _ -> event :: state
-        | GameControl.TrowInAny _ :: _, GameControl.TrowInAny t -> ThrowInAfterEscape(t) :: state
-        | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state
+        | Registration.RegisterPlayers state -> state
+        | GameControl.EndGame state -> state
+        | GameControl.StartGame state -> state
+        | GameControl.RegisterGoal state -> state
+        | GameControl.RegisterBallOutsideField state -> state
+        | GameControl.RegisterThrowInAfterGoal state -> state
         | _ -> 
             printfn "INVALID EVENT: %A" event
             state
@@ -63,7 +56,7 @@ module GameLogic =
         |> Observable.merge (Sensor.stream "A3")
         |> Observable.scanInit (Duration.Zero, [ Configure(config) ]) (gameLogic t config)
         |> Observable.map snd
-        |> Observable.takeWhile GameControl.(|ContinueObserving|)
+        |> Observable.takeWhile GameControl.``|ContinueObserving|``
     
     let start c team config f t players = 
         config

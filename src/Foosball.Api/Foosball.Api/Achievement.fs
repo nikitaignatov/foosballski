@@ -4,6 +4,7 @@ module Achievement =
     let (|FastGoalsInRow|_|) consecutive = None
     let (|BallEscapedMoreThan|_|) times = None
     let (|LongBattle|_|) = None
+    let (|NumberOfBallEscapes|_|) = Some()
     
     /// goal with very slow speed
     let (|HowCouldYouMissThat|_|) = 

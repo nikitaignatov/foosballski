@@ -24,10 +24,12 @@
 #r @"..\packages\Microsoft.Owin.StaticFiles.4.0.0\lib\net451\Microsoft.Owin.StaticFiles.dll"
 // TODO: Send refs to F# interactive
 // load files
+#load "Settings.fs"
 #load "Arduino.fs"
 #load "ArduinoSerialConnector.fs"
 #load "Model.fs"
 #load "Sensor.fs"
+#load "Pattern.fs"
 #load "Achievement.fs"
 #load "ConsolePrinter.fs"
 #load "GameLogic.fs"
@@ -66,10 +68,10 @@ module GameDto =
     
     let goals_within_seconds = 
         function 
-        | Pattern.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
-        | Pattern.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
-        | Pattern.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
-        | Pattern.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 1. x -> "Goal within 1 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 2. x -> "Goal within 2 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 4. x -> "Goal within 4 second" |> Some
+        | Pattern.Goal.GoalWithinSeconds 8. x -> "Goal within 8 second" |> Some
         | _ -> None
     
     let speed = 
@@ -93,7 +95,7 @@ module GameDto =
                        |> List.choose id)
                       :: result)) ([], [])
               |> snd
-          status = input |> List.fold (Pattern.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
+          status = input |> List.fold (Pattern.GameControl.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
 
 let publishGame (g : GameEvent list) = 
     signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
@@ -136,5 +138,5 @@ execute [ wg; wt ]
 execute [ wt; wg; wt ]
 result.Dispose()
 monitor.Cancel()
-ArduinoSerialConnector.connect "COM3" stdin.ReadLine
+ArduinoSerialConnector.connect Settings.t.zero.sensor stdin.ReadLine
 // type commands[start,stop,test,exit] into REPL

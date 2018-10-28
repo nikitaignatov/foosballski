@@ -52,41 +52,80 @@ module Pattern =
             | _ -> None
     
     module GameControl = 
+        let (|EndGame|_|) (state, event) = 
+            match (state, event) with
+            | _, EndGame _ -> (event :: state) |> Some
+            | _ -> None
+        
+        let (|StartGame|_|) (state, event) = 
+            match (state, event) with
+            | StartGame(x, _) :: _, ThrowIn { team = y } when x.color = y.color -> (event :: state) |> Some
+            | _ -> None
+        
         let (|TrowInAny|_|) = 
             function 
             | ThrowIn x | ThrowInAfterEscape x | ThrowInAfterGoal x -> Some(x)
             | _ -> None
         
-        let (|ContinueObserving|) = 
+        let (|Playing|_|) = 
             function 
-            | EndGame _ :: EndGame _ :: _ -> false
-            | _ -> true
-        
-        let (|Ended|_|) = 
-            function 
-            | EndGame _ :: _ -> Some()
+            | TrowInAny _ :: _ -> Some()
             | _ -> None
         
-        let (|IsStartGame|_|) = 
+        let (|Paused|_|) = 
             function 
-            | StartGame(a, b) -> Some(a, b)
+            | TrowInAny _ :: _ -> None
+            | _ -> Some()
+        
+        let (|RegisterGoal|_|) (state, event) = 
+            match (state, event) with
+            | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
             | _ -> None
         
-        let (|GameStartTime|_|) input = 
-            input
-            |> List.choose (|IsStartGame|_|)
-            |> List.map snd
-            |> List.tryHead
+        let (|RegisterBallOutsideField|_|) (state, event) = 
+            match (state, event) with
+            | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state |> Some
+            | _ -> None
         
-        let (|NumberOfBallEscapes|_|) = Some()
+        let (|RegisterThrowInAfterGoal|_|) (state, event) = 
+            match (state, event) with
+            | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state |> Some
+            | _ -> None
         
         let (|GameStatus|) acc v = 
             match (acc, v) with
             | ((a, sa), x), Goal.IsGoal t when t.team = a -> ((a, int sa + 1), x)
             | (x, (b, sb)), Goal.IsGoal t when t.team = b -> (x, (b, int sb + 1))
             | _ -> acc
+        
+        let (|ContinueObserving|) = 
+            function 
+            | Model.GameEvent.EndGame _ :: Model.GameEvent.EndGame _ :: _ -> false
+            | _ -> true
+        
+        module End = 
+            let (|ByGameTimeLimit|_|) ((now, time), config, state, event) = 
+                match (config, state, event) with
+                | GameTimeLimited durtion, _, _ when time >= durtion -> EndGame(now, time) :: state |> Some
+                | _ -> None
+            
+            let (|ByTotalGoalCount|_|) (result, config, state, event) = 
+                match (config, state, event) with
+                | GoalLimitedTotal limit, Goal.Count count, _ when count = limit -> EndGame result :: state |> Some
+                | _ -> None
+            
+            let (|ByTimeLimit|_|) ((result), config, state, event) = 
+                let duration x = 
+                    List.last event |> function 
+                    | (Model.StartGame(_, x)) -> Time.Now.Subtract x
+                    | _ -> Duration.Zero
+                match (config, state, event) with
+                | TimeLimited limit, x, _ when duration x >= limit -> EndGame(result) :: state |> Some
+                | _ -> None
     
     module Registration = 
+        let private empty = Player.zero
+        
         let (|AllPlayersRegistered|_|) input = 
             match input |> List.rev with
             | [ Configure _; Register _; Register _; Register _; Register _ ] -> Some()
@@ -113,24 +152,24 @@ module Pattern =
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None
         
-        let (|RegisterWhiteDefense|_|) input = 
-            match input with
-            | [ Configure _ ] -> Some([ Player.zero; Player.zero; Player.zero; Player.zero ])
-            | _ -> None
-        
-        let (|RegisterWhiteAttack|_|) input = 
-            match input with
-            | [ Register a; Configure _ ] -> Some([ a; Player.zero; Player.zero; Player.zero ])
-            | _ -> None
-        
-        let (|RegisterBlackDefense|_|) = 
+        let private (|RegisterWhiteDefense|_|) = 
             function 
-            | [ Register b; Register a; Configure _ ] -> Some([ a; b; Player.zero; Player.zero ])
+            | [ Configure _ ] -> Some([ empty; empty; empty; empty ])
             | _ -> None
         
-        let (|RegisterBlackAttack|_|) input = 
-            match input with
-            | [ Register c; Register b; Register a; Configure _ ] -> Some([ a; b; c; Player.zero ])
+        let private (|RegisterWhiteAttack|_|) = 
+            function 
+            | [ Register a; Configure _ ] -> Some([ a; empty; empty; empty ])
+            | _ -> None
+        
+        let private (|RegisterBlackDefense|_|) = 
+            function 
+            | [ Register b; Register a; Configure _ ] -> Some([ a; b; empty; empty ])
+            | _ -> None
+        
+        let private (|RegisterBlackAttack|_|) = 
+            function 
+            | [ Register c; Register b; Register a; Configure _ ] -> Some([ a; b; c; empty ])
             | _ -> None
         
         let (|RegisteredPlayers|_|) input = 
