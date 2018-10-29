@@ -45,7 +45,6 @@ open Foosball.Model
 open Nfc.Reader
 open PCSC.Monitoring
 
-let obs2, (monitor : SCardMonitor) = CardReader.execute()
 let signalr = Signalr.Server "http://localhost:8070"
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
@@ -111,8 +110,10 @@ let publishPlayers (g : Player list) =
 
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
-let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 60.))
+let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 30.))
 let cardToPlayer card = { Player.zero with card = card }
+
+let obs2, (monitor : SCardMonitor) = CardReader.execute()
 
 let regs = 
     obs2
@@ -125,8 +126,21 @@ let regs =
            | _ -> None)
     |> Observable.choose id
 
-let result = GameLogic.start (regs) (Model.Team.black) config publishGame publishTime publishPlayers
+let usersList = [ "bobby"; "tables"; "pasta"; "bolognese" ]
+let users = (new Event<string>())
 
+let registration() = 
+    users.Publish
+    |> Observable.map id
+    |> Observable.map (fun x -> (GameEvent.Register { Player.zero with card = x }))
+
+let result = GameLogic.start (registration()) (Model.Team.black) config publishGame publishTime publishPlayers
+
+usersList |> List.iter users.Trigger
+[ "bobby" ] |> List.iter users.Trigger
+[ "tables" ] |> List.iter users.Trigger
+[ "pasta" ] |> List.iter users.Trigger
+[ "bolognese" ] |> List.iter users.Trigger
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ bt ]
 execute [ wt ]
@@ -134,6 +148,7 @@ execute [ bg ]
 execute [ bt ]
 execute [ bg ]
 execute [ bt ]
+execute [ wg ]
 execute [ wg; wt ]
 execute [ wt; wg; wt ]
 result.Dispose()

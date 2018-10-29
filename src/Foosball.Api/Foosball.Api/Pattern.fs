@@ -152,7 +152,6 @@ module Pattern =
                     |> List.pairwise
                     |> List.choose matcher
                 
-                printfn "players: %A" players
                 let p = 
                     a |> List.map (fun x -> 
                              { x with goals = 

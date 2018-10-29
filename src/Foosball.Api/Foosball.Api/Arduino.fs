@@ -26,7 +26,7 @@ module Arduino =
     
     type t() = 
         static let event = (new Event<DateTimeOffset * Event>())
-        static member Observable = event.Publish |> Observable.map (fun c -> c)
+        static member Observable = event.Publish |> Observable.map id
         static member Update msg = 
             try 
                 let ev = JsonConvert.DeserializeObject<Event>(msg)

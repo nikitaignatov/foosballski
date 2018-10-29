@@ -68,10 +68,15 @@ module GameLogic =
         |> Observable.subscribe (fun c -> 
                f c
                match c with
-               | Registration.GoalsByPlayers list -> players list
-               | Registration.AllPlayersRegistered list -> players list
                | Registration.RegisteredPlayers(_, p, message) -> 
                    t message
                    players (p)
-               | Ended -> Newtonsoft.Json.JsonConvert.SerializeObject(c, Formatting.Indented) |> saveFile
+               | EndGame _ :: _ -> 
+                   let settings = new JsonSerializerSettings()
+                   settings.ReferenceLoopHandling <- ReferenceLoopHandling.Ignore
+                   settings.PreserveReferencesHandling <- PreserveReferencesHandling.None
+                   settings.Formatting <- Formatting.Indented
+                   Newtonsoft.Json.JsonConvert.SerializeObject(c, settings) |> saveFile
+               | Registration.GoalsByPlayers list -> players list
+               | Registration.AllPlayersRegistered list -> players list
                | _ -> ConsolePrinter.printGame "GAME STATE " c)
