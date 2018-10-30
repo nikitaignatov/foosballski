@@ -3,6 +3,9 @@
 module Model = 
     open System
     
+    type IntegratedAccount = 
+        | Slack of username : string
+    
     type Time = DateTimeOffset
     
     type Duration = TimeSpan
@@ -16,12 +19,14 @@ module Model =
         { firstName : string
           lastName : string
           card : string
-          goals : EventMetaData list }
+          goals : EventMetaData list
+          integrations : IntegratedAccount list }
         static member zero = 
             { firstName = "---"
               lastName = "---"
               card = ""
-              goals = [] }
+              goals = []
+              integrations = [] }
     
     and TeamColor = 
         | Black
