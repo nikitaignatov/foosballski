@@ -2,8 +2,8 @@
 
 module Settings = 
     type sensor = 
-        { com_port : string
-          baud_rate : int }
+        { comPort : string
+          baudrate : int }
     
     type t = 
         { signalr : string

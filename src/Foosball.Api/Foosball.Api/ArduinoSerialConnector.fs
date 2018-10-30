@@ -11,7 +11,7 @@ module ArduinoSerialConnector =
           close : unit -> unit }
     
     let connect (settings : Settings.sensor) f = 
-        let port = new SerialPort(settings.com_port, settings.baud_rate)
+        let port = new SerialPort(settings.comPort, settings.baudrate)
         
         let read (sender : obj) (_) = 
             let reader = sender :?> SerialPort
