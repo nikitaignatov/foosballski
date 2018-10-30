@@ -95,8 +95,8 @@ module Pattern =
         
         let (|RegisterThrowInAfterGoal|_|) (state, event) = 
             match (state, event) with
-            | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state |> Some
-            | ScoredLastGoal _ :: Goal { team = x } :: _, ThrowIn t when x.color = t.team.color -> ThrowInAfterGoal(t) :: state |> Some
+            | Goal { team = x } :: _, ThrowIn t when x.color = t.team.color |> not -> ThrowInAfterGoal(t) :: state |> Some
+            | ScoredLastGoal _ :: Goal { team = x } :: _, ThrowIn t when x.color = t.team.color |> not -> ThrowInAfterGoal(t) :: state |> Some
             | _ -> None
         
         let (|GameStatus|) acc v = 
@@ -158,6 +158,7 @@ module Pattern =
                                           players
                                           |> List.filter (fun (a, b) -> a.card = x.card)
                                           |> List.map snd })
+                
                 Some(p)
             | _ -> None
         
