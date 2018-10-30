@@ -24,10 +24,10 @@
 #r @"..\packages\Microsoft.Owin.StaticFiles.4.0.0\lib\net451\Microsoft.Owin.StaticFiles.dll"
 // TODO: Send refs to F# interactive
 // load files
+#load "Model.fs"
 #load "Settings.fs"
 #load "Arduino.fs"
 #load "ArduinoSerialConnector.fs"
-#load "Model.fs"
 #load "Sensor.fs"
 #load "Pattern.fs"
 #load "Achievement.fs"

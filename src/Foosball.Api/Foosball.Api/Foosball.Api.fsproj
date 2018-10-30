@@ -56,11 +56,11 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Model.fs" />
     <Compile Include="Settings.fs" />
     <Compile Include="Nfc.fs" />
     <Compile Include="Arduino.fs" />
     <Compile Include="ArduinoSerialConnector.fs" />
-    <Compile Include="Model.fs" />
     <Compile Include="Sensor.fs" />
     <Compile Include="Pattern.fs" />
     <Compile Include="Achievement.fs" />
