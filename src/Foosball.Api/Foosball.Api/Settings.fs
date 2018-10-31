@@ -4,6 +4,13 @@ module Utils =
     open System
     open Newtonsoft.Json
     
+    let serialize input = 
+        let settings = new JsonSerializerSettings()
+        settings.ReferenceLoopHandling <- ReferenceLoopHandling.Ignore
+        settings.PreserveReferencesHandling <- PreserveReferencesHandling.None
+        settings.Formatting <- Formatting.Indented
+        Newtonsoft.Json.JsonConvert.SerializeObject(input, settings)
+    
     let pathGetOrCreate dir file input = 
         let appData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
         let appFolder = IO.Path.Combine(appData, "foosballski", dir)

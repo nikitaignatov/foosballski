@@ -64,7 +64,8 @@ module GameLogic =
     let start c team config f t players = 
         let saveFile s = 
             let timestamp = (Time.Now.ToFileTime().ToString())
-            IO.File.WriteAllText("c:/temp/game_result_" + timestamp + ".json", s)
+            let file = Utils.pathGetOrCreate "game_result" (sprintf "result_%s.json" timestamp) ""
+            IO.File.WriteAllText(file, s)
         config
         |> gameStream c t team
         |> Observable.subscribe (fun c -> 
@@ -73,12 +74,7 @@ module GameLogic =
                | Registration.RegisteredPlayers(_, p, message) -> 
                    t message
                    players (p)
-               | EndGame _ :: _ -> 
-                   let settings = new JsonSerializerSettings()
-                   settings.ReferenceLoopHandling <- ReferenceLoopHandling.Ignore
-                   settings.PreserveReferencesHandling <- PreserveReferencesHandling.None
-                   settings.Formatting <- Formatting.Indented
-                   Newtonsoft.Json.JsonConvert.SerializeObject(c, settings) |> saveFile
+               | EndGame _ :: _ -> Utils.serialize c |> saveFile
                | Registration.GoalsByPlayers list -> players list
                | Registration.AllPlayersRegistered list -> players list
                | _ -> ConsolePrinter.printGame "GAME STATE " c)
