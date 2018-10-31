@@ -31,13 +31,15 @@ module GameLogic =
     
     let gameLogic f config (time, state) event = 
         let time = increment time (state, event)
-        f (time.ToString("mm\:ss"))
         let event = setGameTime event time
         let event = endGame config state (time, event :: state) |> List.head
         time, 
         match (state, event) with
         | _, Tick -> state
-        | Registration.RegisterPlayers state -> state
+        | GameControl.Playing, Tick -> 
+            f (time.ToString("mm\:ss"))
+            state
+        | Registration.RegisterPlayers f state -> state
         | GameControl.EndGame state -> state
         | GameControl.StartGame state -> state
         | GameControl.RegisterGoal state -> state

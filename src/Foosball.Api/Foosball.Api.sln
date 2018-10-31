@@ -7,6 +7,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Foosball.Api", "Foosball.Ap
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{10ECFD20-7615-4A3E-8791-E37B2AD0775E}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Foosball.Test", "Foosball.Test\Foosball.Test.fsproj", "{A6F468A5-2EF0-4199-946B-C24768C1510E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,6 +19,10 @@ Global
 		{FE9BD329-36BB-47D2-9BD4-629F08929B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE9BD329-36BB-47D2-9BD4-629F08929B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE9BD329-36BB-47D2-9BD4-629F08929B6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A6F468A5-2EF0-4199-946B-C24768C1510E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6F468A5-2EF0-4199-946B-C24768C1510E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6F468A5-2EF0-4199-946B-C24768C1510E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6F468A5-2EF0-4199-946B-C24768C1510E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

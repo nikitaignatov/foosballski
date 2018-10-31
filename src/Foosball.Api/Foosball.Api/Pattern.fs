@@ -167,12 +167,13 @@ module Pattern =
             | AllPlayersRegistered _ -> None
             | _ -> Some()
         
-        let (|RegisterPlayers|_|) (state, event) = 
+        let (|RegisterPlayers|_|) f (state, event) = 
             match (state, event) with
             | [ Register wd; Register wa; Register bd; Configure _ ], Register ba -> 
                 let white = Team.create (White) wa wd
                 let black = Team.create (Black) ba bd
                 let start = StartGame(black, Time.Now)
+                f (sprintf "To start game %A throw in the ball" black.color)
                 start :: RegisterTeam black :: RegisterTeam white :: event :: state |> Some
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None
