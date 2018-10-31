@@ -108,10 +108,15 @@ let publishPlayers (g : Player list) =
     signalr.Players(JsonConvert.SerializeObject(g, Formatting.Indented))
     ()
 
+let settings = Settings.SettingsAgent()
 let execute = List.iter sendRandomDuration
 let (wt, wg, bt, bg) = ("A1", "A2", "A0", "A3")
 let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 30.))
-let cardToPlayer card = { Player.zero with card = card }
+
+let cardToPlayer settings card = 
+    match (settings, card) with
+    | Settings.PlayerFromCard player -> Register player.player |> Some
+    | _ -> Register { Player.zero with card = card } |> Some
 
 let obs2, (monitor : SCardMonitor) = CardReader.execute()
 
@@ -119,20 +124,27 @@ let regs =
     obs2
     |> Observable.map (fun x -> 
            match x with
-           | Nfc.Reader.CardReader.Inserted x -> 
-               cardToPlayer x
-               |> Register
-               |> Some
+           | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
            | _ -> None)
     |> Observable.choose id
 
 let usersList = [ "bobby"; "tables"; "pasta"; "bolognese" ]
+
+let player = 
+    { Player.zero with firstName = "some"
+                       lastName = "pasta"
+                       card = "bobby"
+                       integrations = [ Slack "pasta" ] }
+
+Settings.registerPlayer settings "bobby" player
+
 let users = (new Event<string>())
 
 let registration() = 
     users.Publish
     |> Observable.map id
-    |> Observable.map (fun x -> (GameEvent.Register { Player.zero with card = x }))
+    |> Observable.map (cardToPlayer (settings.Load()))
+    |> Observable.choose id
 
 let result = GameLogic.start (registration()) (Model.Team.black) config publishGame publishTime publishPlayers
 

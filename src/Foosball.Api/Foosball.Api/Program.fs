@@ -47,11 +47,12 @@ module App =
     
     [<EntryPoint>]
     let main argv = 
-        let settings = Settings.t.zero
+        let settings = Settings.SettingsAgent()
+        let s = settings.Load()
         let q = new System.Timers.Timer(3.)
         let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))
-        let signalr = Signalr.Server settings.signalr
-        System.Diagnostics.Process.Start(settings.app) |> ignore
+        let signalr = Signalr.Server(settings.Load().signalr)
+        System.Diagnostics.Process.Start(settings.Load().app) |> ignore
         let publishGame (g : GameEvent list) = 
             signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
             ()
@@ -64,22 +65,23 @@ module App =
             signalr.Players(JsonConvert.SerializeObject(g, Formatting.Indented))
             ()
         
-        let cardToPlayer card = { Player.zero with card = card }
+        let cardToPlayer settings card = 
+            match (settings, card) with
+            | Settings.PlayerFromCard player -> Register player.player |> Some
+            | _ -> Register { Player.zero with card = card } |> Some
+        
         let obs2, (monitor : SCardMonitor) = CardReader.execute()
         
         let regs = 
             obs2
             |> Observable.map (fun x -> 
                    match x with
-                   | Nfc.Reader.CardReader.Inserted x -> 
-                       cardToPlayer x
-                       |> Register
-                       |> Some
+                   | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
                    | _ -> None)
             |> Observable.choose id
         
         use result = GameLogic.start (regs) (Model.Team.white) config publishGame publishTime publishPlayers
-        let connector, init = ArduinoSerialConnector.connect settings.sensor stdin.ReadLine
+        let connector, init = ArduinoSerialConnector.connect (settings.Load().sensor) stdin.ReadLine
         init()
         connector.start()
         stdout.WriteLine("start")
