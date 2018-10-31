@@ -61,14 +61,14 @@ module App =
             signalr.Time(JsonConvert.SerializeObject(g, Formatting.Indented))
             ()
         
-        let publishPlayers (g : Player list) = 
+        let publishPlayers (g : Registration list) = 
             signalr.Players(JsonConvert.SerializeObject(g, Formatting.Indented))
             ()
         
         let cardToPlayer settings card = 
             match (settings, card) with
-            | Settings.PlayerFromCard player -> Register player.player |> Some
-            | _ -> Register { Player.zero with card = card } |> Some
+            | Settings.PlayerFromCard player -> Register({card=Card card;player= player.player;goals=[]}) |> Some
+            | _ -> Register({card=Card card;player= Player.zero;goals=[]}) |> Some
         
         let obs2, (monitor : SCardMonitor) = CardReader.execute()
         

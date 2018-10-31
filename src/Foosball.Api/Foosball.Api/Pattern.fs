@@ -9,12 +9,22 @@ module Pattern =
             | Goal meta -> Some(meta)
             | _ -> None
         
-        let (|Goals|_|) a = a |> (List.choose (|IsGoal|_|) >> Some)
-        
         let (|NotGoal|_|) = 
             function 
             | Goal _ -> None
             | _ -> Some()
+        
+        let (|Goals|_|) a = a |> (List.choose (|IsGoal|_|) >> Some)
+        
+        let (|Speed|_|) = 
+            function 
+            | IsGoal x :: _ -> Some(x.speed)
+            | _ -> None
+        
+        let (|Count|_|) = 
+            function 
+            | Goals x -> x |> (List.length >> Some)
+            | _ -> None
         
         let (|GoalsInRow|_|) count input = 
             input
@@ -27,16 +37,6 @@ module Pattern =
             |> fun (team, countInRow) -> 
                 if countInRow >= count then Some team
                 else None
-        
-        let (|Speed|_|) = 
-            function 
-            | IsGoal x :: _ -> Some(x.speed)
-            | _ -> None
-        
-        let (|Count|_|) = 
-            function 
-            | Goals x -> x |> (List.length >> Some)
-            | _ -> None
         
         let rec (|DurationBetweenGoals|_|) = 
             function 
@@ -85,7 +85,7 @@ module Pattern =
         
         let (|RegisterWhoScoredLastGoal|_|) (state, event) = 
             match (state, event) with
-            | Goal _ :: _, Register player -> (ScoredLastGoal player :: state) |> Some
+            | Goal _ :: _, Register reg -> (ScoredLastGoal reg.player :: state) |> Some
             | _ -> None
         
         let (|RegisterBallOutsideField|_|) (state, event) = 
@@ -131,7 +131,10 @@ module Pattern =
                 | _ -> None
     
     module Registration = 
-        let private empty = Player.zero
+        let private empty = 
+            { card = Card ""
+              player = Player.zero
+              goals = [] }
         
         let (|AllPlayersRegistered|_|) input = 
             match input |> List.rev with
@@ -141,25 +144,21 @@ module Pattern =
         
         let (|GoalsByPlayers|_|) input = 
             match input with
-            | AllPlayersRegistered a -> 
+            | AllPlayersRegistered registrations -> 
                 let matcher x = 
                     match x with
                     | ScoredLastGoal x, Goal y -> Some(x, y)
                     | _ -> None
                 
-                let players = 
-                    input
-                    |> List.pairwise
-                    |> List.choose matcher
+                let players = input |> (List.pairwise >> List.choose matcher)
                 
-                let p = 
-                    a |> List.map (fun x -> 
-                             { x with goals = 
-                                          players
-                                          |> List.filter (fun (a, b) -> a.card = x.card)
-                                          |> List.map snd })
-                
-                Some(p)
+                let goals x = 
+                    players
+                    |> List.filter (fun (a, _) -> a = x.player)
+                    |> List.map snd
+                registrations
+                |> List.map (fun x -> { x with goals = goals x })
+                |> Some
             | _ -> None
         
         let (|NotAllPlayersRegistered|_|) = 
@@ -170,36 +169,24 @@ module Pattern =
         let (|RegisterPlayers|_|) f (state, event) = 
             match (state, event) with
             | [ Register wd; Register wa; Register bd; Configure _ ], Register ba -> 
-                let white = Team.create (White) wa wd
-                let black = Team.create (Black) ba bd
+                let white = Team.create (White) wa.player wd.player
+                let black = Team.create (Black) ba.player bd.player
                 let start = StartGame(black, Time.Now)
                 f (sprintf "To start game %A throw in the ball" black.color)
                 start :: RegisterTeam black :: RegisterTeam white :: event :: state |> Some
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None
         
-        let private (|WhiteDefense|_|) = 
+        let private (|WhiteDefense|WhiteAttack|BlackDefense|BlackAttack|None|) = 
             function 
-            | [ Configure _ ] -> Some([ empty; empty; empty; empty ])
+            | [ Configure _ ] -> WhiteDefense([ empty; empty; empty; empty ])
+            | [ Register a; Configure _ ] -> WhiteAttack([ a; empty; empty; empty ])
+            | [ Register b; Register a; Configure _ ] -> BlackDefense([ a; b; empty; empty ])
+            | [ Register c; Register b; Register a; Configure _ ] -> BlackAttack([ a; b; c; empty ])
             | _ -> None
         
-        let private (|WhiteAttack|_|) = 
+        let (|RegisteredPlayers|_|) = 
             function 
-            | [ Register a; Configure _ ] -> Some([ a; empty; empty; empty ])
-            | _ -> None
-        
-        let private (|BlackDefense|_|) = 
-            function 
-            | [ Register b; Register a; Configure _ ] -> Some([ a; b; empty; empty ])
-            | _ -> None
-        
-        let private (|BlackAttack|_|) = 
-            function 
-            | [ Register c; Register b; Register a; Configure _ ] -> Some([ a; b; c; empty ])
-            | _ -> None
-        
-        let (|RegisteredPlayers|_|) input = 
-            match input with
             | [ Register d; Register c; Register b; Register a; Configure _ ] -> Some("READY", [ a; b; c; d ], "Throw in the ball to start the game.")
             | BlackAttack(a) -> Some("Configure", a, "Register player for Black Attack position")
             | BlackDefense(a) -> Some("Configure", a, "Register player for Black Defense position")

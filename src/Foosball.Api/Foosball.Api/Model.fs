@@ -3,9 +3,6 @@
 module Model = 
     open System
     
-    type IntegratedAccount = 
-        | Slack of username : string
-    
     type Time = DateTimeOffset
     
     type Duration = TimeSpan
@@ -15,17 +12,19 @@ module Model =
           speed : decimal
           timestamp : Time }
     
+    type IntegratedAccount = 
+        | Slack of username : string
+    
+    type Card = 
+        | Card of string
+    
     type Player = 
         { firstName : string
           lastName : string
-          card : string
-          goals : EventMetaData list
           integrations : IntegratedAccount list }
         static member zero = 
             { firstName = "---"
               lastName = "---"
-              card = ""
-              goals = []
               integrations = [] }
     
     and TeamColor = 
@@ -58,6 +57,11 @@ module Model =
           id : Guid }
         member m.print event = sprintf "[%A]: %-25s [time: %O] [game time: %O] [speed: %.2fm/s %.2fkm/h]" m.team event (m.timestamp.ToString("HH:mm:ss")) (m.gametime) m.speed (m.speed * 3.6m)
     
+    type Registration = 
+        { card : Card
+          player : Player
+          goals : EventMetaData list }
+    
     type GameConfig = 
         | GameTimeLimited of Duration
         | TimeLimited of Duration
@@ -68,7 +72,7 @@ module Model =
         | Tick
         | Undo
         | Configure of GameConfig
-        | Register of Player
+        | Register of Registration
         | RegisterTeam of Team
         | Substitution of Team
         | StartGame of Team * Time
@@ -78,64 +82,3 @@ module Model =
         | ThrowIn of EventMetaData
         | ThrowInAfterGoal of EventMetaData
         | ThrowInAfterEscape of EventMetaData
-        override m.ToString() = 
-            match m with
-            | Goal x -> x.print "Goal"
-            | ThrowIn x -> x.print "Throw In"
-            | ThrowInAfterGoal x -> x.print "Throw In After Goal"
-            | ThrowInAfterEscape x -> x.print "Throw In After Escape"
-            | _ -> sprintf "%A" m
-
-module GameState = 
-    open Model
-    
-    type t = 
-        | Registration of Team * Team
-        | Registered of Team * Team
-        | NotConfigured of Team * Team
-        | Configured of Team * Team * GameConfig
-        | Playing
-        | Paused
-        | Ended
-    
-    let (|Configure|_|) = 
-        function 
-        | NotConfigured(a, b), GameEvent.Configure config -> Configured(a, b, config) |> Some
-        | _ -> None
-    
-    let (|MissingDefender|_|) team = 
-        match team with
-        | { defense = d } when d = Player.zero -> Some team
-        | _ -> None
-    
-    let (|MissingCenterForward|_|) team = 
-        match team with
-        | { attack = d } when d = Player.zero -> Some team
-        | _ -> None
-    
-    let (|Register|_|) = 
-        function 
-        | Registration(MissingDefender a, b), GameEvent.Register player -> Registration({ a with defense = player }, b) |> Some
-        | Registration(MissingCenterForward a, b), GameEvent.Register player -> Registration({ a with attack = player }, b) |> Some
-        | Registration(a, MissingDefender b), GameEvent.Register player -> Registration(a, { b with defense = player }) |> Some
-        | Registration(a, MissingCenterForward b), GameEvent.Register player -> Registered(a, { b with attack = player }) |> Some
-        | Registered(a, b), _ -> NotConfigured(a, b) |> Some
-        | _ -> None
-    
-    let (|RegistrationFlow|) = 
-        function 
-        | a & Registration(_) -> true
-        | a & Registered _ -> true
-        | _ -> false
-    
-    let (|ConfigurationFlow|) = 
-        function 
-        | a & NotConfigured(_) -> true
-        | a & Configured _ -> true
-        | _ -> false
-    
-    let apply state event = 
-        match state, event with
-        | Register state -> state
-        | Configure state -> state
-        | _ -> state
