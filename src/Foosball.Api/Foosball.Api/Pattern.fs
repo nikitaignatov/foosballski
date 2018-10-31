@@ -187,7 +187,7 @@ module Pattern =
         
         let (|RegisteredPlayers|_|) = 
             function 
-            | [ Register d; Register c; Register b; Register a; Configure _ ] -> Some("READY", [ a; b; c; d ], "Throw in the ball to start the game.")
+            | AllPlayersRegistered players -> Some("READY", players, "Throw in the ball to start the game.")
             | BlackAttack(a) -> Some("Configure", a, "Register player for Black Attack position")
             | BlackDefense(a) -> Some("Configure", a, "Register player for Black Defense position")
             | WhiteAttack(a) -> Some("Configure", a, "Register player for White Attack position")
