@@ -15,6 +15,9 @@ module Signalr=
         member x.command message =
             printfn "Received an order: %s" message
 
+        member x.execute message =
+            printfn "Execute command: %A" message
+
 
     type Server (host:string) =
         let startup (a:IAppBuilder) =

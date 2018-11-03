@@ -47,7 +47,7 @@ module App =
     
     [<EntryPoint>]
     let main argv = 
-        let settings = Settings.SettingsAgent()
+        let settings = Settings.current
         let s = settings.Load()
         let q = new System.Timers.Timer(3.)
         let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))

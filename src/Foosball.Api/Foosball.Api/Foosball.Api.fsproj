@@ -58,6 +58,7 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Settings.fs" />
+    <Compile Include="SlackIntegration.fs" />
     <Compile Include="Nfc.fs" />
     <Compile Include="Arduino.fs" />
     <Compile Include="ArduinoSerialConnector.fs" />

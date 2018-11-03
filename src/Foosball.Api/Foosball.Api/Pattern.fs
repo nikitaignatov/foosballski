@@ -131,6 +131,7 @@ module Pattern =
                 | _ -> None
     
     module Registration = 
+        
         let private empty = 
             { card = Card ""
               player = Player.zero
@@ -168,11 +169,13 @@ module Pattern =
         
         let (|RegisterPlayers|_|) f (state, event) = 
             match (state, event) with
-            | [ Register wd; Register wa; Register bd; Configure _ ], Register ba -> 
+            | [ Register bd; Register wa; Register wd; Configure _ ], Register ba -> 
                 let white = Team.create (White) wa.player wd.player
                 let black = Team.create (Black) ba.player bd.player
                 let start = StartGame(black, Time.Now)
                 f (sprintf "To start game %A throw in the ball" black.color)
+                // todo:move to event handler
+                SlackIntegration.tryPostGameStart Utils.post [ wa.player; ba.player; wd.player; bd.player ] (Settings.current.Load()) |> ignore
                 start :: RegisterTeam black :: RegisterTeam white :: event :: state |> Some
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None

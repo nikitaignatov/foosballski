@@ -3,6 +3,9 @@
 module Utils = 
     open System
     open Newtonsoft.Json
+    open FSharp.Data
+    
+    let post url json = Http.RequestString(url, headers = [ (FSharp.Data.HttpRequestHeaders.ContentType HttpContentTypes.Json) ], body = TextRequest(json)) |> ignore
     
     let serialize input = 
         let settings = new JsonSerializerSettings()
@@ -39,12 +42,14 @@ module Settings =
         { timestamp : Time
           signalr : string
           app : string
+          slackWebHookUrl : string option
           sensor : sensor
           players : Map<string, CardUser list> }
         static member zero = 
             { timestamp = Time.Now
               signalr = "http://localhost:8070"
               app = "http://localhost:8080/"
+              slackWebHookUrl = None
               players = Map.empty
               sensor = 
                   { comPort = "COM5"
@@ -105,3 +110,5 @@ module Settings =
             |> List.sortByDescending (fun x -> x.from)
             |> List.tryHead
         else None
+    
+    let current = SettingsAgent()
