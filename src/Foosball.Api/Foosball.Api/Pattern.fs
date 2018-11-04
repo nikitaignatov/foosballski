@@ -11,7 +11,7 @@ module Pattern =
         
         let (|NotGoal|_|) = 
             function 
-            | Goal _ -> None
+            | IsGoal _ -> None
             | _ -> Some()
         
         let (|Goals|_|) a = a |> (List.choose (|IsGoal|_|) >> Some)
@@ -74,13 +74,12 @@ module Pattern =
         
         let (|Paused|_|) = 
             function 
-            | TrowInAny _ :: _ -> None
+            | Playing -> None
             | _ -> Some()
         
         let (|RegisterGoal|_|) (state, event) = 
             match (state, event) with
-            | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
-            | TrowInAny _ :: _, Goal _ -> (event :: state) |> Some
+            | Playing, Goal _ -> (event :: state) |> Some
             | _ -> None
         
         let (|RegisterWhoScoredLastGoal|_|) (state, event) = 
@@ -90,7 +89,7 @@ module Pattern =
         
         let (|RegisterBallOutsideField|_|) (state, event) = 
             match (state, event) with
-            | TrowInAny _ :: _, TrowInAny t -> ThrowInAfterEscape(t) :: state |> Some
+            | Playing, TrowInAny t -> ThrowInAfterEscape(t) :: state |> Some
             | _ -> None
         
         let (|RegisterThrowInAfterGoal|_|) (state, event) = 
@@ -131,7 +130,6 @@ module Pattern =
                 | _ -> None
     
     module Registration = 
-        
         let private empty = 
             { card = Card ""
               player = Player.zero
