@@ -69,24 +69,26 @@ module App =
             match (settings, card) with
             | Settings.PlayerFromCard player -> Register({card=Card card;player= player.player;goals=[]}) |> Some
             | _ -> Register({card=Card card;player= Player.zero;goals=[]}) |> Some
+        try 
+            let obs2, (monitor : SCardMonitor) = CardReader.execute()
         
-        let obs2, (monitor : SCardMonitor) = CardReader.execute()
+            let regs = 
+                obs2
+                |> Observable.map (fun x -> 
+                       match x with
+                       | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
+                       | _ -> None)
+                |> Observable.choose id
         
-        let regs = 
-            obs2
-            |> Observable.map (fun x -> 
-                   match x with
-                   | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
-                   | _ -> None)
-            |> Observable.choose id
-        
-        use result = GameLogic.start (regs) (Model.Team.white) config publishGame publishTime publishPlayers
-        let connector, init = ArduinoSerialConnector.connect (settings.Load().sensor) stdin.ReadLine
-        init()
-        connector.start()
-        stdout.WriteLine("start")
-        printfn "exiting application"
-        monitor.Dispose()
-        result.Dispose()
-        connector.close()
+            use result = GameLogic.start (regs) (Model.Team.white) config publishGame publishTime publishPlayers
+            let connector, init = ArduinoSerialConnector.connect (settings.Load().sensor) stdin.ReadLine
+            init()
+            connector.start()
+            stdout.WriteLine("start")
+            printfn "exiting application"
+            monitor.Dispose()
+            result.Dispose()
+            connector.close()
+        with e -> printfn "%A" e
+        stdin.ReadLine()
         0 // return an integer exit code

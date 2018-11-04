@@ -51,3 +51,8 @@ module SlackIntegration =
         try 
             postGameStart post players settings |> Ok
         with e -> Error(e)
+    
+    let tryPostGameStartPrint post players settings = 
+        match tryPostGameStart post players settings with
+        | Ok() -> printfn "notification sent to slack"
+        | Error e -> printfn "failed to send notification to clack err: %A" e.Message

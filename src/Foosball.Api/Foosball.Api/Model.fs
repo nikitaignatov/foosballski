@@ -75,6 +75,7 @@ module Model =
         | Register of Registration
         | RegisterTeam of Team
         | Substitution of Team
+        | Swap of TeamColor
         | StartGame of Team * Time
         | EndGame of time : Time * gametime : Duration
         | ScoredLastGoal of Player

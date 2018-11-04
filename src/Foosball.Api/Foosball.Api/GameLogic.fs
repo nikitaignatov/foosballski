@@ -52,6 +52,7 @@ module GameLogic =
     
     let gameStream cardreader t team config = 
         (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
+        |> Observable.merge (Signalr.t.Observable |> Observable.map snd)
         |> Observable.merge (cardreader)
         |> Observable.merge (Sensor.stream "A0")
         |> Observable.merge (Sensor.stream "A1")

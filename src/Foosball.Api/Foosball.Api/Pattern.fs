@@ -173,7 +173,7 @@ module Pattern =
                 let start = StartGame(black, Time.Now)
                 f (sprintf "To start game %A throw in the ball" black.color)
                 // todo:move to event handler
-                SlackIntegration.tryPostGameStart Utils.post [ wa.player; ba.player; wd.player; bd.player ] (Settings.current.Load()) |> ignore
+                SlackIntegration.tryPostGameStartPrint Utils.post [ wa.player; ba.player; wd.player; bd.player ] (Settings.current.Load()) |> ignore
                 start :: RegisterTeam black :: RegisterTeam white :: event :: state |> Some
             | NotAllPlayersRegistered, Register _ -> event :: state |> Some
             | _ -> None

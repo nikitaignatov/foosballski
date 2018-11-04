@@ -29,6 +29,7 @@
 #load "Arduino.fs"
 #load "ArduinoSerialConnector.fs"
 #load "Sensor.fs"
+#load "SlackIntegration.fs"
 #load "Pattern.fs"
 #load "Achievement.fs"
 #load "ConsolePrinter.fs"
@@ -46,6 +47,7 @@ open Nfc.Reader
 open PCSC.Monitoring
 
 let signalr = Signalr.Server "http://localhost:8070"
+
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
 
