@@ -35,10 +35,10 @@ module GameLogic =
         let event = endGame config state (time, event :: state) |> List.head
         time, 
         match (state, event) with
-        | _, Tick -> state
         | GameControl.Playing, Tick -> 
             f (time.ToString("mm\:ss"))
             state
+        | _, Tick -> state
         | Registration.RegisterPlayers f state -> state
         | GameControl.EndGame state -> state
         | GameControl.StartGame state -> state
@@ -72,9 +72,7 @@ module GameLogic =
         |> Observable.subscribe (fun c -> 
                f c
                match c with
-               | Registration.RegisteredPlayers(_, p, message) -> 
-                   t message
-                   players (p)
+               | Registration.RegisteredPlayers(_, p, message) -> players (p)
                | EndGame _ :: _ -> Utils.serialize c |> saveFile
                | Registration.GoalsByPlayers list -> players list
                | Registration.AllPlayersRegistered list -> players list

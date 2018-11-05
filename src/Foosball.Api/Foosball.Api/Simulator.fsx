@@ -33,8 +33,8 @@
 #load "Pattern.fs"
 #load "Achievement.fs"
 #load "ConsolePrinter.fs"
-#load "GameLogic.fs"
 #load "Signalr.fs"
+#load "GameLogic.fs"
 #load "Nfc.fs"
 
 open System
