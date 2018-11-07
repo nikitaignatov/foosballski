@@ -5,7 +5,7 @@ module GameDto =
     
     type t = 
         { status : (Team * int) * (Team * int)
-          events : (Model.GameEvent * string list) list }
+          events : (Model.GameCommand * string list) list }
     
     let goals_within_seconds = 
         function 
@@ -24,7 +24,7 @@ module GameDto =
         | Achievement.MachOne x -> sprintf "Mach 1: %f km/h" (x * 3.6m) |> Some
         | _ -> None
     
-    let toDto (input : Model.GameEvent list) = 
+    let toDto (input : Model.GameCommand list) = 
         { events = 
               input
               |> List.rev
@@ -53,7 +53,7 @@ module App =
         let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))
         let signalr = Signalr.Server(settings.Load().signalr)
         System.Diagnostics.Process.Start(settings.Load().app) |> ignore
-        let publishGame (g : GameEvent list) = 
+        let publishGame (g : GameCommand list) = 
             signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
             ()
         

@@ -1,29 +1,5 @@
 ﻿namespace Foosball
 
-module Utils = 
-    open System
-    open Newtonsoft.Json
-    open FSharp.Data
-    
-    let post url json = Http.RequestString(url, headers = [ (FSharp.Data.HttpRequestHeaders.ContentType HttpContentTypes.Json) ], body = TextRequest(json)) |> ignore
-    
-    let serialize input = 
-        let settings = new JsonSerializerSettings()
-        settings.ReferenceLoopHandling <- ReferenceLoopHandling.Ignore
-        settings.PreserveReferencesHandling <- PreserveReferencesHandling.None
-        settings.Formatting <- Formatting.Indented
-        Newtonsoft.Json.JsonConvert.SerializeObject(input, settings)
-    
-    let pathGetOrCreate dir file input = 
-        let appData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
-        let appFolder = IO.Path.Combine(appData, "foosballski", dir)
-        let file = IO.Path.Combine(appFolder, file)
-        if IO.Directory.Exists(appFolder) |> not then IO.Directory.CreateDirectory(appFolder) |> ignore
-        if IO.File.Exists(file) |> not then 
-            IO.File.Create(file).Close()
-            let json = JsonConvert.SerializeObject(input, Formatting.Indented)
-            IO.File.WriteAllText(file, json)
-        file
 
 module Settings = 
     open System

@@ -13,7 +13,7 @@ module GameLogic =
         | _ -> time
     
     let setGameTime event (time : Duration) = 
-        let update f x = f { x with gametime = time }
+        let update f (x:EventMetaData) = f { x with gametime = time }
         match event with
         | ThrowIn x -> update ThrowIn x
         | ThrowInAfterGoal x -> update ThrowInAfterGoal x

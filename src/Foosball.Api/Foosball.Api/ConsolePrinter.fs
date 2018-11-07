@@ -15,7 +15,7 @@ module ConsolePrinter =
         | EndGame _ :: _ -> "ENDED"
         | _ -> "PAUSED"
     
-    let printGame title (state : GameEvent list) = 
+    let printGame title (state : GameCommand list) = 
         let summary = state |> List.fold (mapper) ((Team.black.color, 0), (Team.white.color, 0))
         state
         |> List.rev

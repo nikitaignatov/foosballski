@@ -28,7 +28,7 @@ module Signalr =
         inherit Hub()
         member x.execute message = 
             printfn "Received an order: %s" message
-            t<GameEvent>.Update message
+            t<GameCommand>.Update message
     
     type Server(host : string) = 
         

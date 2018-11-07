@@ -120,15 +120,15 @@ let cardToPlayer settings card =
     | Settings.PlayerFromCard player -> Register({card=Card card;player= player.player;goals=[]}) |> Some
     | _ -> Register({card=Card card;player= Player.zero;goals=[]}) |> Some
 
-let obs2, (monitor : SCardMonitor) = CardReader.execute()
+//let obs2, (monitor : SCardMonitor) = CardReader.execute()
 
-let regs = 
-    obs2
-    |> Observable.map (fun x -> 
-           match x with
-           | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
-           | _ -> None)
-    |> Observable.choose id
+//let regs = 
+//    obs2
+//    |> Observable.map (fun x -> 
+//           match x with
+//           | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
+//           | _ -> None)
+//    |> Observable.choose id
 
 let usersList = [ "bobby"; "tables"; "pasta"; "bolognese" ]
 
@@ -165,6 +165,6 @@ execute [ wg ]
 execute [ wg; wt ]
 execute [ wt; wg; wt ]
 result.Dispose()
-monitor.Cancel()
+//monitor.Cancel()
 ArduinoSerialConnector.connect Settings.t.zero.sensor stdin.ReadLine
 // type commands[start,stop,test,exit] into REPL

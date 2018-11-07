@@ -38,8 +38,8 @@ module Pattern =
                 if countInRow >= count then Some team
                 else None
         
-        let rec (|DurationBetweenGoals|_|) = 
-            function 
+        let rec (|DurationBetweenGoals|_|)(input:EventMetaData list) = 
+            match input with  
             | [] -> None
             | x :: [] -> Some([ (x.gametime, x) ])
             | x :: [ y ] -> Some([ (x.gametime - y.gametime, x) ])
@@ -106,7 +106,7 @@ module Pattern =
         
         let (|ContinueObserving|) = 
             function 
-            | Model.GameEvent.EndGame _ :: Model.GameEvent.EndGame _ :: _ -> false
+            | Model.GameCommand.EndGame _ :: Model.GameCommand.EndGame _ :: _ -> false
             | _ -> true
         
         module End = 
