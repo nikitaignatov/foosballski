@@ -239,7 +239,7 @@ module Model =
             | (Registr(_, _, r)) & (Registr(id, config, { whiteCenterForward = None })) -> Registr(id, config, { r with whiteCenterForward = Some p })
             | (Registr(_, _, r)) & (Registr(id, config, { blackDefense = None })) -> Registr(id, config, { r with blackDefense = Some p })
             | (Registr(id, config, { blackDefense = Some bd; whiteCenterForward = Some wcf; whiteDefense = Some wd })) -> State.WaitingThrowIn(Black, GameData.start id config wd wcf bd p)
-            | _ -> ErrorState "Can only be configured when game is new."
+            | _ -> ErrorState(sprintf "Can only register when game is in configuration or registration mode. %A" state)
         | _ -> state
     
     let handle state = 
@@ -251,6 +251,11 @@ module Model =
         | NewGame id -> Initialized id |> apply
         | Configure data -> Configured data |> apply
         | Register data -> RegisteredPlayer data |> apply
+        | ThrowIn { team = t; timestamp = time; gametime = duration } -> 
+            ThrownIn { color = t.color
+                       timestamp = time
+                       gametime = duration }
+            |> apply
         | ScoredLastGoal data -> PlayerScoredLastGoal data |> apply
         | Swap data -> Swapped data |> apply
         | Goal data -> 
@@ -260,6 +265,7 @@ module Model =
                          timestamp = data.timestamp
                          id = data.id })
             |> apply
+        | e -> Error("Cannot apply the event")
     
     type Aggregate<'TState, 'TCommand, 'TEvent> = 
         { zero : 'TState
@@ -285,7 +291,7 @@ module Model =
                 printfn "error: %s" e.Message
             ()
 
-module p = 
+module EventStore = 
     open System
     open Model
     
@@ -304,7 +310,7 @@ module p =
     let commit (id : Model.Id, v : int) (e : Model.GameEvent) = 
         let path = path id
         let events = load id
-        let json = Utils.serialize (e :: events)
+        let json = Utils.serialize (events @ [ e ])
         IO.File.WriteAllText(path, json)
         GameSubscription<Model.GameEvent>.Update e
         ()
@@ -312,7 +318,42 @@ module p =
     let handler = makeHandler agg (load, commit)
     let id = Model.Id.NewGuid()
     
+    type private GameMessage = 
+        | Execute of (GameCommand * AsyncReplyChannel<GameEvent list>)
+    
+    type GameAgent() = 
+        
+        let agent = 
+            MailboxProcessor<GameMessage>.Start(fun inbox -> 
+                let rec loop() = 
+                    async { 
+                        try 
+                            let! msg = inbox.Receive()
+                            let (id, cmd, repl) = 
+                                match msg with
+                                | Execute(cmd, repl) & Execute((GameCommand.NewGame id), _) -> (id, cmd, repl)
+                                | Execute(cmd, repl) -> (id, cmd, repl)
+                            printfn "MSG:%A" (id, cmd)
+                            handler (id, 0) cmd
+                            let data = load (id)
+                            repl.Reply(data)
+                            printfn "MSG_R:%A" (id, List.last data)
+                            return! loop()
+                        with e -> printfn "Error: %A" e
+                    }
+                loop())
+        
+        member this.Execute(msg : GameCommand) = agent.PostAndReply(fun x -> Execute(msg, x))
+    
+    let Game = new GameAgent()
+    
     GameSubscription<Model.GameEvent>.Observable |> Observable.subscribe (printfn "event from sub: %A")
+    
+    let game = new GameAgent()
+    
+    game.Execute
     handler (id, 0) (Model.GameCommand.NewGame id)
     handler (id, 0) (Model.GameCommand.Configure(Model.GameConfig.GoalLimitedTotal 10))
-    handler (id, 0) (Model.GameCommand.Register())
+    handler (id, 0) (Model.GameCommand.Register({ card = Card "bobby"
+                                                  player = Player.zero
+                                                  goals = [] }))

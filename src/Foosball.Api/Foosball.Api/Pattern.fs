@@ -103,6 +103,12 @@ module Pattern =
             | ((a, sa), x), Goal.IsGoal t when t.team = a -> ((a, int sa + 1), x)
             | (x, (b, sb)), Goal.IsGoal t when t.team = b -> (x, (b, int sb + 1))
             | _ -> acc
+            
+        let (|GameStatus2|) acc v = 
+            match (acc, v) with
+            | ((a, sa), x), Model.GameEvent.ScoredGoal (t,_) when t = a -> ((a, int sa + 1), x)
+            | (x, (b, sb)), Model.GameEvent.ScoredGoal (t,_) when t = b -> (x, (b, int sb + 1))
+            | _ -> acc
         
         let (|ContinueObserving|) = 
             function 

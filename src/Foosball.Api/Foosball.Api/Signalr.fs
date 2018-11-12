@@ -11,13 +11,22 @@ module Signalr =
     open Model
     
     type t<'a>() = 
-        static let event = (new Event<Time * 'a>())
+        static let event = (new Event<Id * Time * 'a>())
         static member Observable = event.Publish |> Observable.map id
-        static member Update msg = 
+        
+        static member Publish id ev = 
+            try 
+                event.Trigger(id, Time.Now, ev)
+            with e -> 
+                printfn "Event: %A" ev
+                printfn "error: %s" e.Message
+            ()
+        
+        static member Update id msg = 
             try 
                 let ev = JsonConvert.DeserializeObject<'a>(msg)
                 // printfn "event: %A" ev
-                event.Trigger(Time.Now, ev)
+                t<'a>.Publish (Id.Parse id) ev
             with e -> 
                 printfn "message: %s" msg
                 printfn "error: %s" e.Message

@@ -64,7 +64,7 @@ let sendDelayedRandom sensor =
 
 module GameDto = 
     type t = 
-        { status : (Team * int) * (Team * int)
+        { status : (TeamColor * int) * (TeamColor * int)
           events : (Model.GameEvent * string list) list }
     
     let goals_within_seconds = 
@@ -91,12 +91,11 @@ module GameDto =
               |> List.fold (fun (state, result) v -> 
                      (v :: state), 
                      ((v, 
-                       [ goals_within_seconds (v :: state)
-                         speed (v :: state) ]
+                       []
                        |> List.choose id)
                       :: result)) ([], [])
               |> snd
-          status = input |> List.fold (Pattern.GameControl.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
+          status = input |> List.fold (Pattern.GameControl.``|GameStatus2|``) (((TeamColor.Black, 0), (TeamColor.White, 0))) }
 
 let publishGame (g : GameEvent list) = 
     signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
@@ -140,23 +139,24 @@ let player =
 Settings.registerPlayer settings "bobby" player
 
 let users = (new Event<string>())
-
 let registration() = 
     users.Publish
     |> Observable.map id
     |> Observable.map (cardToPlayer (settings.Load()))
     |> Observable.choose id
-
-let result = GameLogic.start (registration()) (Model.Team.black) config publishGame publishTime publishPlayers
-
+let agent = new EventStore.GameAgent()
+let result = GameLogic.start (registration()) 
+EventStore.Game.Execute(GameCommand.NewGame( Id.NewGuid()))
+EventStore.Game.Execute(GameCommand.Configure( config))
+Utils.serialize(TeamColor.Black)
 usersList |> List.iter users.Trigger
 [ "bobby" ] |> List.iter users.Trigger
 [ "tables" ] |> List.iter users.Trigger
 [ "pasta" ] |> List.iter users.Trigger
 [ "bolognese" ] |> List.iter users.Trigger
 [ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
-execute [ bt ]
 execute [ wt ]
+execute [ bt ]
 execute [ bg ]
 execute [ bt ]
 execute [ bg ]

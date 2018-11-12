@@ -13,7 +13,7 @@ module GameLogic =
         | _ -> time
     
     let setGameTime event (time : Duration) = 
-        let update f (x:EventMetaData) = f { x with gametime = time }
+        let update f (x : EventMetaData) = f { x with gametime = time }
         match event with
         | ThrowIn x -> update ThrowIn x
         | ThrowInAfterGoal x -> update ThrowInAfterGoal x
@@ -50,30 +50,24 @@ module GameLogic =
             printfn "INVALID EVENT: %A" event
             state
     
-    let gameStream cardreader t team config = 
+    let gameStream (cardreader : IObservable<GameCommand>) = 
         (Observable.interval (Duration.FromSeconds 1.) |> Observable.map (fun _ -> Tick))
-        |> Observable.merge (Signalr.t.Observable |> Observable.map snd)
+        |> Observable.merge (Signalr.t<GameCommand>.Observable |> Observable.map (fun (id, time, cmd) -> cmd))
         |> Observable.merge (cardreader)
         |> Observable.merge (Sensor.stream "A0")
         |> Observable.merge (Sensor.stream "A1")
         |> Observable.merge (Sensor.stream "A2")
         |> Observable.merge (Sensor.stream "A3")
-        |> Observable.scanInit (Duration.Zero, [ Configure(config) ]) (gameLogic t config)
-        |> Observable.map snd
-        |> Observable.takeWhile GameControl.``|ContinueObserving|``
     
-    let start c team config f t players = 
-        let saveFile s = 
-            let timestamp = (Time.Now.ToFileTime().ToString())
-            let file = Utils.pathGetOrCreate "game_result" (sprintf "result_%s.json" timestamp) ""
-            IO.File.WriteAllText(file, s)
-        config
-        |> gameStream c t team
+    let start c = 
+        c
+        |> gameStream
         |> Observable.subscribe (fun c -> 
-               f c
                match c with
-               | Registration.RegisteredPlayers(_, p, message) -> players (p)
-               | EndGame _ :: _ -> Utils.serialize c |> saveFile
-               | Registration.GoalsByPlayers list -> players list
-               | Registration.AllPlayersRegistered list -> players list
-               | _ -> ConsolePrinter.printGame "GAME STATE " c)
+               //| Registration.RegisteredPlayers(_, p, message) -> players (p)
+               //| EndGame _ :: _ -> Utils.serialize c |> saveFile
+               //| Registration.GoalsByPlayers list -> players list
+               | Tick -> 
+                   EventStore.Game.Execute c
+                   ()
+               | _ -> printfn "GAME STATE %A" c)

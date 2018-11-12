@@ -4,8 +4,8 @@ module GameDto =
     open Model
     
     type t = 
-        { status : (Team * int) * (Team * int)
-          events : (Model.GameCommand * string list) list }
+        { status : (TeamColor * int) * (TeamColor * int)
+          events : (Model.GameEvent * string list) list }
     
     let goals_within_seconds = 
         function 
@@ -24,19 +24,18 @@ module GameDto =
         | Achievement.MachOne x -> sprintf "Mach 1: %f km/h" (x * 3.6m) |> Some
         | _ -> None
     
-    let toDto (input : Model.GameCommand list) = 
+    let toDto (input : Model.GameEvent list) = 
         { events = 
               input
               |> List.rev
               |> List.fold (fun (state, result) v -> 
                      (v :: state), 
                      ((v, 
-                       [ goals_within_seconds (v :: state)
-                         speed (v :: state) ]
+                       [  ]
                        |> List.choose id)
                       :: result)) ([], [])
               |> snd
-          status = input |> List.fold (Pattern.GameControl.``|GameStatus|``) (((Team.black, 0), (Team.white, 0))) }
+          status = input |> List.fold (Pattern.GameControl.``|GameStatus2|``) (((TeamColor.Black, 0), (TeamColor.White, 0))) }
 
 //printfn "%A" Arduino.Command.Start
 module App = 
@@ -53,7 +52,7 @@ module App =
         let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))
         let signalr = Signalr.Server(settings.Load().signalr)
         System.Diagnostics.Process.Start(settings.Load().app) |> ignore
-        let publishGame (g : GameCommand list) = 
+        let publishGame (g : GameEvent list) = 
             signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
             ()
         
@@ -80,7 +79,7 @@ module App =
                        | _ -> None)
                 |> Observable.choose id
         
-            use result = GameLogic.start (regs) (Model.Team.white) config publishGame publishTime publishPlayers
+            use result = GameLogic.start (regs)
             let connector, init = ArduinoSerialConnector.connect (settings.Load().sensor) stdin.ReadLine
             init()
             connector.start()
