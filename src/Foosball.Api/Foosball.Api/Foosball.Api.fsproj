@@ -67,6 +67,7 @@
     <Compile Include="Achievement.fs" />
     <Compile Include="Signalr.fs" />
     <Compile Include="GameLogic.fs" />
+    <Compile Include="EventStore.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
