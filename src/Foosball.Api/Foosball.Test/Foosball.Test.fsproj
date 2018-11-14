@@ -52,6 +52,7 @@
     <None Include="App.config" />
     <Content Include="packages.config" />
     <Compile Include="GameLogicTests.fs" />
+    <Compile Include="CommandHandlerTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FsCheck">

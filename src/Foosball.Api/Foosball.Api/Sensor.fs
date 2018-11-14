@@ -1,10 +1,9 @@
 ﻿namespace Foosball
 
 module Sensor = 
-    open Foosball.Model
-    open Foosball.Arduino
+    open Model
+    open Arduino
     open System
-    open FSharp.Data.UnitSystems
     
     module Speed = 
         open System
@@ -21,12 +20,17 @@ module Sensor =
             let result = ball / time
             Decimal.Round(result, 2)
     
-    let toMeta team (speed, timestamt) = 
-        { team = team
-          speed = speed
-          timestamp = timestamt
+    let toGoal (team : Team) (speed, timestamp) = 
+        team.color, 
+        { speed = speed
+          timestamp = timestamp
           gametime = TimeSpan.Zero
           id = Guid.NewGuid() }
+    
+    let toThrowIn (team : Team) (_, timestamp) = 
+        { color = team.color
+          timestamp = timestamp
+          gametime = TimeSpan.Zero }
     
     // sensor mapping
     let (|Sensor|_|) id input = 
@@ -49,10 +53,10 @@ module Sensor =
     
     let toDomainModel = 
         function 
-        | Sensor "A0" x -> ThrowIn(toMeta Team.black x)
-        | Sensor "A1" x -> ThrowIn(toMeta Team.white x)
-        | Sensor "A2" x -> Goal(toMeta Team.white x)
-        | Sensor "A3" x -> Goal(toMeta Team.black x)
+        | Sensor "A0" x -> ThrowIn(toThrowIn Team.black x)
+        | Sensor "A1" x -> ThrowIn(toThrowIn Team.white x)
+        | Sensor "A2" x -> Goal(toGoal Team.white x)
+        | Sensor "A3" x -> Goal(toGoal Team.black x)
     
     let toReading ((t, SensorReading(key, _, time)), (_, SensorReading(_, _, time1))) = 
         { id = key

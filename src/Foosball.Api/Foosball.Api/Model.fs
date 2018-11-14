@@ -78,13 +78,6 @@ module Model =
         static member black = Team.zero TeamColor.Black
         static member white = Team.zero TeamColor.White
     
-    and EventMetaData = 
-        { team : Team
-          speed : decimal
-          timestamp : Time
-          gametime : Duration
-          id : Id }
-    
     and ThrowinMetaData = 
         { color : TeamColor
           timestamp : Time
@@ -99,7 +92,7 @@ module Model =
     type Registration = 
         { card : Card
           player : Player
-          goals : EventMetaData list }
+          goals : GoalMetaData list }
     
     type GameConfig = 
         | GameTimeLimited of Duration
@@ -143,11 +136,15 @@ module Model =
               blackCenterForward = d, [] }
         
         static member stamp (x : GameData) = { x with timestamp = Time.Now }
-        static member update x = { x with timer = x.timer.Add(Time.Now - x.timestamp) } |> GameData.stamp
+        static member update x = 
+            let time = Time.Now
+            { x with timer = x.timer.Add(time - x.timestamp)
+                     timestamp = time }
     
     type GameCommand = 
         | Tick
         | NewGame of Id
+        | EndGame
         | Undo
         | Configure of GameConfig
         | Register of Registration
@@ -155,16 +152,15 @@ module Model =
         | Substitution of Team
         | Swap of TeamColor
         | StartGame of Team * Time
-        | EndGame of time : Time * gametime : Duration
         | ScoredLastGoal of Player
-        | Goal of EventMetaData
-        | ThrowIn of EventMetaData
-        | ThrowInAfterGoal of EventMetaData
-        | ThrowInAfterEscape of EventMetaData
+        | Goal of TeamColor * GoalMetaData
+        | ThrowIn of ThrowinMetaData
+        | ThrowInAfterGoal of ThrowinMetaData
+        | ThrowInAfterEscape of ThrowinMetaData
     
     type GameEvent = 
         | RejectGoal
-        | Paused
+        | Paused of Time * Duration
         | Initialized of Id
         | Configured of GameConfig
         | RegisteredPlayer of Registration
@@ -182,7 +178,7 @@ module Model =
         | Zero
         | New of Id
         | Configuration of Id * GameConfig
-        | Registr of Id * GameConfig * Reg
+        | Registration of Id * GameConfig * Reg
         | Pause of GameData
         | WaitingThrowIn of TeamColor * GameData
         | Playing of GameData
@@ -190,170 +186,3 @@ module Model =
         | Result of GameData
         static member zero = Zero
         static member init = Guid.NewGuid() |> New
-    
-    let apply (state : State) event = 
-        match event with
-        | Initialized id -> 
-            match state with
-            | Zero -> New(id)
-            | _ -> ErrorState "Can only be applied in Zero state"
-        | Configured conf -> 
-            match state with
-            | New(id) -> Configuration(id, conf)
-            | _ -> ErrorState "Can only be configured when game is new."
-        | Swapped(White) -> 
-            match state with
-            | (WaitingThrowIn(_, state)) & (WaitingThrowIn(_, { whiteDefense = wd; whiteCenterForward = wcf })) -> 
-                { state with whiteDefense = wcf
-                             whiteCenterForward = wd }
-                |> fun c -> WaitingThrowIn(Black, c)
-            | _ -> ErrorState "Can only be configured when game is new."
-        | ThrownIn meta -> 
-            match state with
-            | WaitingThrowIn(color, state) when meta.color = color -> GameData.stamp { state with throwins = meta :: state.throwins } |> Playing
-            | Playing state -> { state with throwins = meta :: state.throwins } |> Playing
-            | _ -> ErrorState "Can only be configured when game is new."
-        | Paused -> 
-            match state with
-            | Playing state -> GameData.update state |> Pause
-            | _ -> ErrorState "Can only be configured when game is new."
-        | ScoredGoal(color, meta) -> 
-            match state with
-            | Playing state -> GameData.update state |> fun x -> (color, meta, x) |> GoalRegistration
-            | _ -> ErrorState "Can only be configured when game is new."
-        | PlayerScoredLastGoal(p) -> 
-            match state with
-            | GoalRegistration(color, _, state) -> 
-                WaitingThrowIn((if color = White then Black
-                                else White), state)
-            | _ -> ErrorState "Can only be configured when game is new."
-        | RejectGoal -> 
-            match state with
-            | GoalRegistration(color, _, state) -> 
-                WaitingThrowIn((if color = White then Black
-                                else White), state)
-            | _ -> ErrorState "Can only be configured when game is new."
-        | RegisteredPlayer p -> 
-            match state with
-            | Configuration(id, config) -> Registr(id, config, { Reg.zero with whiteDefense = Some p })
-            | (Registr(_, _, r)) & (Registr(id, config, { whiteCenterForward = None })) -> Registr(id, config, { r with whiteCenterForward = Some p })
-            | (Registr(_, _, r)) & (Registr(id, config, { blackDefense = None })) -> Registr(id, config, { r with blackDefense = Some p })
-            | (Registr(id, config, { blackDefense = Some bd; whiteCenterForward = Some wcf; whiteDefense = Some wd })) -> State.WaitingThrowIn(Black, GameData.start id config wd wcf bd p)
-            | _ -> ErrorState(sprintf "Can only register when game is in configuration or registration mode. %A" state)
-        | _ -> state
-    
-    let handle state = 
-        let apply event = 
-            match apply state event with
-            | ErrorState s -> Error s
-            | _ -> Ok event
-        function 
-        | NewGame id -> Initialized id |> apply
-        | Configure data -> Configured data |> apply
-        | Register data -> RegisteredPlayer data |> apply
-        | ThrowIn { team = t; timestamp = time; gametime = duration } -> 
-            ThrownIn { color = t.color
-                       timestamp = time
-                       gametime = duration }
-            |> apply
-        | ScoredLastGoal data -> PlayerScoredLastGoal data |> apply
-        | Swap data -> Swapped data |> apply
-        | Goal data -> 
-            ScoredGoal(data.team.color, 
-                       { speed = data.speed
-                         gametime = data.gametime
-                         timestamp = data.timestamp
-                         id = data.id })
-            |> apply
-        | e -> Error("Cannot apply the event")
-    
-    type Aggregate<'TState, 'TCommand, 'TEvent> = 
-        { zero : 'TState
-          apply : 'TState -> 'TEvent -> 'TState
-          exec : 'TState -> 'TCommand -> Result<'TEvent, string> }
-    
-    let makeHandler (aggregate : Aggregate<'TState, 'TCommand, 'TEvent>) (load : Id -> 'TEvent list, commit : Id * int -> ('TEvent -> unit)) = 
-        fun (id, version) command -> 
-            let state = load id |> List.fold aggregate.apply aggregate.zero
-            let event = aggregate.exec state command
-            match event with
-            | Ok event -> event |> commit (id, version)
-            | Error message -> printfn "%s" message
-    
-    type GameSubscription<'a>() = 
-        static let event = (new Event<'a>())
-        static member Observable = event.Publish |> Observable.map id
-        static member Update msg = 
-            try 
-                event.Trigger(msg)
-            with e -> 
-                printfn "message: %A" msg
-                printfn "error: %s" e.Message
-            ()
-
-module EventStore = 
-    open System
-    open Model
-    
-    let agg = 
-        { zero = Model.State.zero
-          apply = Model.apply
-          exec = Model.handle }
-    
-    let path id = Utils.pathGetOrCreate "games" (sprintf "game-%s.json" (id.ToString())) []
-    
-    let load (id : Model.Id) : Model.GameEvent list = 
-        path id
-        |> IO.File.ReadAllText
-        |> Utils.deserialize<GameEvent list>
-    
-    let commit (id : Model.Id, v : int) (e : Model.GameEvent) = 
-        let path = path id
-        let events = load id
-        let json = Utils.serialize (events @ [ e ])
-        IO.File.WriteAllText(path, json)
-        GameSubscription<Model.GameEvent>.Update e
-        ()
-    
-    let handler = makeHandler agg (load, commit)
-    let id = Model.Id.NewGuid()
-    
-    type private GameMessage = 
-        | Execute of (GameCommand * AsyncReplyChannel<GameEvent list>)
-    
-    type GameAgent() = 
-        
-        let agent = 
-            MailboxProcessor<GameMessage>.Start(fun inbox -> 
-                let rec loop() = 
-                    async { 
-                        try 
-                            let! msg = inbox.Receive()
-                            let (id, cmd, repl) = 
-                                match msg with
-                                | Execute(cmd, repl) & Execute((GameCommand.NewGame id), _) -> (id, cmd, repl)
-                                | Execute(cmd, repl) -> (id, cmd, repl)
-                            printfn "MSG:%A" (id, cmd)
-                            handler (id, 0) cmd
-                            let data = load (id)
-                            repl.Reply(data)
-                            printfn "MSG_R:%A" (id, List.last data)
-                            return! loop()
-                        with e -> printfn "Error: %A" e
-                    }
-                loop())
-        
-        member this.Execute(msg : GameCommand) = agent.PostAndReply(fun x -> Execute(msg, x))
-    
-    let Game = new GameAgent()
-    
-    GameSubscription<Model.GameEvent>.Observable |> Observable.subscribe (printfn "event from sub: %A")
-    
-    let game = new GameAgent()
-    
-    game.Execute
-    handler (id, 0) (Model.GameCommand.NewGame id)
-    handler (id, 0) (Model.GameCommand.Configure(Model.GameConfig.GoalLimitedTotal 10))
-    handler (id, 0) (Model.GameCommand.Register({ card = Card "bobby"
-                                                  player = Player.zero
-                                                  goals = [] }))

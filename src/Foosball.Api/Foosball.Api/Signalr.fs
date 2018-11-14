@@ -25,19 +25,18 @@ module Signalr =
         static member Update id msg = 
             try 
                 let ev = JsonConvert.DeserializeObject<'a>(msg)
-                // printfn "event: %A" ev
                 t<'a>.Publish (Id.Parse id) ev
             with e -> 
-                printfn "message: %s" msg
+                printfn "message: %s %s" id msg
                 printfn "error: %s" e.Message
             ()
     
     [<HubName("foosball")>]
     type FoosballHub() = 
         inherit Hub()
-        member x.execute message = 
-            printfn "Received an order: %s" message
-            t<GameCommand>.Update message
+        member x.execute id message = 
+            printfn "Received an order: %s %s" id message
+            t<GameCommand>.Update id message
     
     type Server(host : string) = 
         

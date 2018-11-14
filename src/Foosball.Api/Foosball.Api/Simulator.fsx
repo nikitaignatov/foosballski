@@ -34,6 +34,7 @@
 #load "Achievement.fs"
 #load "Signalr.fs"
 #load "GameLogic.fs"
+#load "EventStore.fs"
 #load "Nfc.fs"
 
 open System
@@ -46,7 +47,6 @@ open Nfc.Reader
 open PCSC.Monitoring
 
 let signalr = Signalr.Server "http://localhost:8070"
-
 let publish ev = JsonConvert.SerializeObject ev |> Arduino.t.Update
 let r = new Random()
 
@@ -87,12 +87,7 @@ module GameDto =
         { events = 
               input
               |> List.rev
-              |> List.fold (fun (state, result) v -> 
-                     (v :: state), 
-                     ((v, 
-                       []
-                       |> List.choose id)
-                      :: result)) ([], [])
+              |> List.fold (fun (state, result) v -> (v :: state), ((v, [] |> List.choose id) :: result)) ([], [])
               |> snd
           status = input |> List.fold (Pattern.GameControl.``|GameStatus2|``) (((TeamColor.Black, 0), (TeamColor.White, 0))) }
 
@@ -115,11 +110,18 @@ let config = (GameConfig.GameTimeLimited(Duration.FromSeconds 30.))
 
 let cardToPlayer settings card = 
     match (settings, card) with
-    | Settings.PlayerFromCard player -> Register({card=Card card;player= player.player;goals=[]}) |> Some
-    | _ -> Register({card=Card card;player= Player.zero;goals=[]}) |> Some
+    | Settings.PlayerFromCard player -> 
+        Register({ card = Card card
+                   player = player.player
+                   goals = [] })
+        |> Some
+    | _ -> 
+        Register({ card = Card card
+                   player = Player.zero
+                   goals = [] })
+        |> Some
 
 //let obs2, (monitor : SCardMonitor) = CardReader.execute()
-
 //let regs = 
 //    obs2
 //    |> Observable.map (fun x -> 
@@ -127,43 +129,51 @@ let cardToPlayer settings card =
 //           | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
 //           | _ -> None)
 //    |> Observable.choose id
-
 let usersList = [ "bobby"; "tables"; "pasta"; "bolognese" ]
 
 let player = 
-    { Player.zero with firstName = "some"
-                       lastName = "pasta"
-                       integrations = [ Slack "pasta" ] }
+    { Player.zero with firstName = "bolognese"
+                       lastName = "Spaghetti"
+                       integrations = [ Slack "spabolo" ] }
 
-Settings.registerPlayer settings "bobby" player
+Settings.registerPlayer settings "bolognese" player
 
 let users = (new Event<string>())
+
 let registration() = 
     users.Publish
     |> Observable.map id
     |> Observable.map (cardToPlayer (settings.Load()))
     |> Observable.choose id
-let agent = new EventStore.GameAgent()
-let result = GameLogic.start (registration()) 
-EventStore.Game.Execute(GameCommand.NewGame( Id.NewGuid()))
-EventStore.Game.Execute(GameCommand.Configure( config))
-Utils.serialize(TeamColor.Black)
+
+let agent = new EventStore.GameAgent(registration(),signalr)
+
+Signalr.t<GameCommand>.Observable
+|> Observable.map (fun (a, b, c) -> a, c)
+|> Observable.subscribe agent.Execute
+
+let id = Id.NewGuid()
+//let id = Id.Parse("e26823e3-d2ce-e7f8-d7ea-aa444205a14f")
+
+agent.Execute(id, GameCommand.NewGame(id))
+agent.Execute(id, GameCommand.Configure(config))
 usersList |> List.iter users.Trigger
+execute [ bt ]
+execute [ bg ]
 [ "bobby" ] |> List.iter users.Trigger
-[ "tables" ] |> List.iter users.Trigger
-[ "pasta" ] |> List.iter users.Trigger
-[ "bolognese" ] |> List.iter users.Trigger
-[ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
 execute [ wt ]
 execute [ bt ]
 execute [ bg ]
-execute [ bt ]
-execute [ bg ]
+[ "tables" ] |> List.iter users.Trigger
 execute [ bt ]
 execute [ wg ]
-execute [ wg; wt ]
+[ "pasta" ] |> List.iter users.Trigger
+execute [ bg ]
+execute [ wg ]
+[ "bolognese" ] |> List.iter users.Trigger
 execute [ wt; wg; wt ]
-result.Dispose()
+[ wt; wg; wt; bg; bt; bg; bt ] |> List.iter sendDelayedRandom
+agent.Execute(id, GameCommand.EndGame)
 //monitor.Cancel()
 ArduinoSerialConnector.connect Settings.t.zero.sensor stdin.ReadLine
 // type commands[start,stop,test,exit] into REPL

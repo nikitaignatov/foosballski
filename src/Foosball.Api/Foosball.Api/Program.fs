@@ -28,18 +28,12 @@ module GameDto =
         { events = 
               input
               |> List.rev
-              |> List.fold (fun (state, result) v -> 
-                     (v :: state), 
-                     ((v, 
-                       [  ]
-                       |> List.choose id)
-                      :: result)) ([], [])
+              |> List.fold (fun (state, result) v -> (v :: state), ((v, [] |> List.choose id) :: result)) ([], [])
               |> snd
           status = input |> List.fold (Pattern.GameControl.``|GameStatus2|``) (((TeamColor.Black, 0), (TeamColor.White, 0))) }
 
 //printfn "%A" Arduino.Command.Start
 module App = 
-    open Newtonsoft.Json
     open Model
     open PCSC.Monitoring
     open Nfc.Reader
@@ -47,30 +41,21 @@ module App =
     [<EntryPoint>]
     let main argv = 
         let settings = Settings.current
-        let s = settings.Load()
-        let q = new System.Timers.Timer(3.)
-        let config = (Model.GameConfig.GameTimeLimited(Model.Duration.FromSeconds 120.))
         let signalr = Signalr.Server(settings.Load().signalr)
         System.Diagnostics.Process.Start(settings.Load().app) |> ignore
-        let publishGame (g : GameEvent list) = 
-            signalr.Send(JsonConvert.SerializeObject(GameDto.toDto g, Formatting.Indented))
-            ()
-        
-        let publishTime (g : string) = 
-            signalr.Time(JsonConvert.SerializeObject(g, Formatting.Indented))
-            ()
-        
-        let publishPlayers (g : Registration list) = 
-            signalr.Players(JsonConvert.SerializeObject(g, Formatting.Indented))
-            ()
-        
         let cardToPlayer settings card = 
-            match (settings, card) with
-            | Settings.PlayerFromCard player -> Register({card=Card card;player= player.player;goals=[]}) |> Some
-            | _ -> Register({card=Card card;player= Player.zero;goals=[]}) |> Some
+            let player = 
+                match (settings, card) with
+                | Settings.PlayerFromCard player -> player.player
+                | _ -> Player.zero
+            { card = Card card
+              player = player
+              goals = [] }
+            |> Register
+            |> Some
         try 
             let obs2, (monitor : SCardMonitor) = CardReader.execute()
-        
+            
             let regs = 
                 obs2
                 |> Observable.map (fun x -> 
@@ -78,15 +63,21 @@ module App =
                        | Nfc.Reader.CardReader.Inserted x -> cardToPlayer (settings.Load()) x
                        | _ -> None)
                 |> Observable.choose id
-        
-            use result = GameLogic.start (regs)
+            
+            let agent = new EventStore.GameAgent(regs,signalr)
+            
+            let subscription = 
+                Signalr.t<GameCommand>.Observable
+                |> Observable.map (fun (a, b, c) -> a, c)
+                |> Observable.subscribe agent.Execute
+            
             let connector, init = ArduinoSerialConnector.connect (settings.Load().sensor) stdin.ReadLine
             init()
             connector.start()
             stdout.WriteLine("start")
             printfn "exiting application"
             monitor.Dispose()
-            result.Dispose()
+            subscription.Dispose()
             connector.close()
         with e -> printfn "%A" e
         stdin.ReadLine()
