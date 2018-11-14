@@ -65,14 +65,12 @@
     <Compile Include="Sensor.fs" />
     <Compile Include="Pattern.fs" />
     <Compile Include="Achievement.fs" />
-    <Compile Include="ConsolePrinter.fs" />
     <Compile Include="Signalr.fs" />
     <Compile Include="GameLogic.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
     <None Include="Simulator.fsx" />
-    <None Include="Simulator2.fsx" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Dynamitey">

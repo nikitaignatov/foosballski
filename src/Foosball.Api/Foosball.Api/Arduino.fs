@@ -1,7 +1,6 @@
 ﻿namespace Foosball
 
 module Arduino = 
-    open System
     open Newtonsoft.Json
     
     type PinState = 

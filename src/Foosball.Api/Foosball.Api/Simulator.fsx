@@ -32,7 +32,6 @@
 #load "SlackIntegration.fs"
 #load "Pattern.fs"
 #load "Achievement.fs"
-#load "ConsolePrinter.fs"
 #load "Signalr.fs"
 #load "GameLogic.fs"
 #load "Nfc.fs"
