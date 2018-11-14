@@ -6,6 +6,7 @@ open FsCheck
 open FsCheck.NUnit
 open Foosball
 open Foosball.Model
+open Foosball.GameLogic
 
 type Positive = 
     static member Double() = Arb.Default.Int32() |> Arb.mapFilter abs (fun t -> t >= 0)
@@ -60,7 +61,7 @@ type Specification() =
             |> List.map register
             |> List.append [ event ]
         match events |> List.fold apply state with
-        | Registr(gameId, _, 
+        | Registration(gameId, _, 
                   { whiteDefense = Some { card = Card "a"; player = { firstName = "aa" } }; whiteCenterForward = Some { card = Card "b"; player = { firstName = "bb" } }; 
                     blackDefense = Some { card = Card "c"; player = { firstName = "cc" } }; blackCenterForward = None }) -> gameId = id
         | _ -> false
